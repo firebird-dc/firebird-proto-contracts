@@ -1,0 +1,230 @@
+syntax = "proto3";
+
+package firebird.api.v1;
+
+option go_package = "github.com/firebird-dc/firebird-proto-contracts/gen/go;v1";
+
+import "google/protobuf/timestamp.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+  info: {
+    title: "Firebird API";
+    version: "1.0";
+    description: "Control plane API for bare-metal servers, virtual machines, networking, storage, and identity management.";
+    contact: { name: "API Support"; };
+    license: { name: "Apache 2.0"; url: "https://www.apache.org/licenses/LICENSE-2.0.html"; };
+  };
+
+  schemes: HTTPS;
+  consumes: "application/json";
+  produces: "application/json";
+  base_path: "/api/v1";
+
+  // Optional: document OIDC discovery (not standard in OAS2, but useful)
+  // extensions: {
+  //   key: "x-oidc-discovery-url";
+  //   value: { string_value: "https://auth.example.com/realms/<realm>/.well-known/openid-configuration" };
+  // };
+
+  security_definitions: {
+    security: {
+      // 1) Plain "paste your JWT" bearer token (apiKey in header)
+      key: "BearerAuth";
+      value: {
+        type: TYPE_API_KEY;
+        in: IN_HEADER;
+        name: "Authorization";
+        description: "Bearer token authentication (JWT). Format: 'Bearer <your-token>'.";
+      };
+    };
+
+    security: {
+      // 2) OAuth2 password flow (OIDC token endpoint)
+      key: "OIDCPassword";
+      value: {
+        type: TYPE_OAUTH2;
+        flow: FLOW_PASSWORD;
+        // Prefer a full URL if auth is on a different host:
+        // token_url: "https://auth.example.com/realms/<realm>/protocol/openid-connect/token";
+        token_url: "/api/v1/auth/token";
+        description: "OIDC/OAuth2 password grant (ROPC) to obtain a bearer access token.";
+        // scopes are optional; keep empty if you don’t model scopes
+        scopes: {};
+      };
+    };
+
+    security: {
+      // 3) OAuth2 client_credentials flow ("application" in OpenAPI v2)
+      key: "OIDCClientCredentials";
+      value: {
+        type: TYPE_OAUTH2;
+        flow: FLOW_APPLICATION;
+        // token_url: "https://auth.example.com/realms/<realm>/protocol/openid-connect/token";
+        token_url: "/api/v1/auth/token";
+        description: "OIDC/OAuth2 client credentials grant to obtain a bearer access token.";
+        scopes: {};
+      };
+    };
+  };
+
+  // Apply security globally as OR across the list (any one works). :contentReference[oaicite:1]{index=1}
+  security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+  security: { security_requirement: { key: "OIDCPassword"; value: {}; }; };
+  security: { security_requirement: { key: "OIDCClientCredentials"; value: {}; }; };
+};
+
+// ==========================
+// Enums
+// ==========================
+
+// Nested in a message to scope enum values and avoid name collisions
+// with top-level message names (e.g. VPC, VM).
+message EntityTypeEnum {
+  enum EntityType {
+    UNSPECIFIED = 0;
+    IAM = 1;
+    BMS = 2;
+    VPC = 3;
+    MAINTENANCE_EVENT = 4;
+    FILE_SYSTEM = 5;
+
+    PROJECT = 6;
+    IMAGE = 7;
+    SUBNET = 8;
+    FIREWALL_RULE = 9;
+    reserved 10; // was REGION — removed
+    VM = 11;
+    SSH_KEY = 12;
+    PUBLIC_IP = 13;
+    DHCP_RESERVATION = 14;
+    QUOTA = 15;
+    DISK = 16;
+    // Fenced BM maintenance lease: the related resource on compute-control audit events.
+    MAINTENANCE_LEASE = 17;
+    K8S_CLUSTER = 18;
+    K8S_NODE_POOL = 19;
+    IMAGE_UPLOAD = 20;
+    IB_PARTITION = 21;
+    IB_PARTITION_MEMBERSHIP = 22;
+  }
+}
+
+// Nested to avoid value collisions with SubjectType.USER.
+message ActorTypeEnum {
+  enum ActorType {
+    UNSPECIFIED = 0;
+    SYSTEM = 1;
+    USER = 2;
+    SERVICE = 3;
+  }
+}
+
+
+enum OperationAction {
+    OPERATION_ACTION_UNSPECIFIED = 0;
+    CREATE = 1;
+    UPDATE = 2;
+    DELETE = 3;
+    PROVISION = 4;
+    POWER_ON = 5;
+    POWER_OFF = 6;
+    REBOOT = 7;
+    START = 8;
+    STOP = 9;
+    RESTART = 10;
+    ATTACH = 11;
+    DETACH = 12;
+    ADD_ROLE = 13;
+    DELETE_ROLE = 14;
+    ACKNOWLEDGE = 15;
+    DEPROVISION = 16;
+    ATTACH_PUBLIC_IP = 17;
+    DETACH_PUBLIC_IP = 18;
+    RELEASE_PUBLIC_IP = 19;
+    RESERVE_PUBLIC_IP = 20;
+    QUOTA_CHANGE_TENANT_LIMIT = 21;
+    QUOTA_CHANGE_DEFAULT_LIMIT = 22;
+    QUOTA_CHANGE_CLUSTER_CAPACITY = 23;
+    QUOTA_REQUEST_SUBMIT = 24;
+    QUOTA_REQUEST_CANCEL = 25;
+    DOWNLOAD_KUBECONFIG = 26;
+    ATTACH_SSH_KEY = 27;
+    DETACH_SSH_KEY = 28;
+    ROTATE_CREDENTIAL = 29;
+    SET_ACCESS = 30;
+}
+
+enum OperationStatus {
+  UNSPECIFIED = 0;
+  PENDING = 1;
+  IN_PROGRESS = 2;
+  COMPLETED = 3;
+  FAILED = 4;
+}
+
+
+// ==========================
+// Shared error shape
+// ==========================
+
+// ResourceError is the most recent provider-reported failure on a resource,
+// surfaced on the resource itself so a client that polls GET /<resource> learns
+// why it failed without also polling the parent operation.
+//
+// Embedded by VPC, Subnet, PublicIP and VMObservedStatus. Absent (unset) means
+// no failure is currently recorded — a resource that recovers has it cleared.
+//
+// The raw provider text is deliberately NOT here: it carries webhook names,
+// namespaces and internal wrapping. It stays in the DB's last_error.detail for
+// operator diagnostics, and the parent operation keeps the fully-wrapped string.
+message ResourceError {
+  // Reason is a SUPERSET across resources — not every value can occur on every
+  // resource. Today QUOTA_EXCEEDED and REASON_UNSPECIFIED are the only ones
+  // reachable on a VPC, Subnet or Public IP; the other six originate in
+  // firebird-cloud-vm-operator conditions and are VM-only.
+  //
+  // That split describes today's producers, NOT a wire guarantee: adding a
+  // producer is a non-breaking change, so a client must tolerate any value on
+  // any resource. Switch on reason alone and fall back to `message` for anything
+  // unrecognised, rather than switching on resource type first.
+  enum Reason {
+    REASON_UNSPECIFIED = 0;          // unknown / unmapped failure
+    UNSCHEDULABLE = 1;               // no node could satisfy the requested capacity
+    VM_REJECTED = 2;                 // VM configuration rejected by the platform
+    SHARED_FILESYSTEM_REJECTED = 3;  // a requested shared filesystem could not be attached
+    NAMESPACE_REJECTED = 4;          // tenant namespace could not be provisioned
+    NETWORK_REJECTED = 5;            // network could not be provisioned
+    IMAGE_REJECTED = 6;              // requested image could not be prepared
+    // QUOTA_EXCEEDED means a downstream cluster refused the request because a
+    // tenant quota is full. Actionable by the customer (free capacity) or an
+    // admin (raise the limit) — not an internal failure, and not resolved by
+    // retrying. `message` carries the enforcer's own sentence including the
+    // live numbers, so render it rather than substituting generic copy.
+    QUOTA_EXCEEDED = 7;
+  }
+  // Source attributes a failure that originated on a DIFFERENT resource.
+  //
+  // A composite request (create a VM on a new network) fans out to several
+  // resources, and the one being read is not always the one that failed.
+  message Source {
+    // Reuses EntityTypeEnum rather than a free string so clients can switch
+    // exhaustively and an unmapped value degrades to UNSPECIFIED instead of
+    // silently carrying a typo.
+    EntityTypeEnum.EntityType resource_type = 1;
+    string resource_id = 2;  // e.g. "vpc.01KZCGGP3WD9YX7XA4926H7QKK"
+  }
+
+  Reason reason = 1;                          // machine-readable failure classification
+  string message = 2;                         // user-facing description; safe to display verbatim
+  google.protobuf.Timestamp occurred_at = 3;  // when the failure was observed
+
+  // Absent when the resource failed on its own — the common case. Present when
+  // an upstream dependency failed and this resource inherited the verdict.
+  //
+  // Read it before acting on `reason`. A VM reporting QUOTA_EXCEEDED with
+  // source={vpc, vpc.01K…} means the VPC's quota is full, NOT the VM's — offer
+  // to raise the limit on the source resource, or link the user to it. Acting
+  // on `reason` alone would target the wrong quota dimension.
+  optional Source source = 4;
+}

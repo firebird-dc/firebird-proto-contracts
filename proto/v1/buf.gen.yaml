@@ -1,0 +1,27 @@
+version: v1
+plugins:
+  - name: go
+    out: ../../gen/go
+    opt:
+      - paths=source_relative
+  - name: go-grpc
+    out: ../../gen/go
+    opt:
+      - paths=source_relative
+  - name: grpc-gateway
+    out: ../../gen/go
+    opt:
+      - paths=source_relative
+      - generate_unbound_methods=true
+  - name: openapiv2
+    out: ../../docs/openapi
+    strategy: all
+    opt:
+      - allow_merge=true
+      - merge_file_name=firebird
+      - use_allof_for_refs=true
+      - logtostderr=true
+      - ignore_comments=true
+      - disable_default_responses=true
+      - disable_default_errors=true
+      - omit_enum_default_value=true

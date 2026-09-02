@@ -1,0 +1,355 @@
+syntax = "proto3";
+
+package firebird.api.v1;
+
+option go_package = "github.com/firebird-dc/firebird-proto-contracts/gen/go;v1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+service MaintenanceEventService {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
+    name: "Breakfix"
+    description: "Breakfix / Maintenance Events API."
+  };
+
+  rpc ListMaintenanceEvents(ListMaintenanceEventsRequest) returns (ListMaintenanceEventsResponse) {
+    option (google.api.http) = { get: "/maintenance-events" };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List maintenance events"
+      tags: "Breakfix"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; } }
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListMaintenanceEventsResponse" }
+          }
+        };
+      }
+    };
+  }
+
+  rpc GetMaintenanceEvent(GetMaintenanceEventRequest) returns (GetMaintenanceEventResponse) {
+    option (google.api.http) = { get: "/maintenance-events/{event_id}" };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get maintenance event by ID with its conversation"
+      tags: "Breakfix"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; } }
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.GetMaintenanceEventResponse" }
+          }
+        };
+      }
+    };
+  }
+
+  // AddMaintenanceEventComment appends one immutable conversation entry to the
+  // caller's own tenant-created, non-cleared event. The server derives the
+  // author from the JWT and the kind from the current status
+  // (INFORMATION_RESPONSE while REQUESTED, COMMENT otherwise). A reply never
+  // changes status or acknowledgement — only the provider returns a REQUESTED
+  // event to ACTIVE. Supports the Idempotency-Key header.
+  rpc AddMaintenanceEventComment(AddMaintenanceEventCommentRequest) returns (MaintenanceEventCommentResponse) {
+    option (google.api.http) = { post: "/maintenance-events/{event_id}/comments" body: "*" };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Add a comment to a tenant-reported maintenance event"
+      tags: "Breakfix"
+      parameters: {
+        headers: {
+          name: "Idempotency-Key"
+          description: "Optional client-generated key (max 255 bytes) deduplicating retries of this write"
+          type: STRING
+        }
+      }
+      security: { security_requirement: { key: "BearerAuth"; value: {}; } }
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.MaintenanceEventCommentResponse" }
+          }
+        };
+      }
+    };
+  }
+
+  rpc CreateMaintenanceEventForInstance(CreateMaintenanceEventForInstanceRequest) returns (MaintenanceEventResponse) {
+    option (google.api.http) = { post: "/maintenance-events" body: "*" };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Create tenant maintenance event for BM"
+      tags: "Breakfix"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; } }
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.MaintenanceEventResponse" }
+          }
+        };
+      }
+    };
+  }
+
+  rpc AckMaintenanceEvent(AckMaintenanceEventRequest) returns (MaintenanceEventResponse) {
+    option (google.api.http) = { post: "/maintenance-events/{event_id}/ack" };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Acknowledge maintenance event by event ID"
+      tags: "Breakfix"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; } }
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.MaintenanceEventResponse" }
+          }
+        };
+      }
+    };
+  }
+
+  rpc AckMaintenanceEventsForInstance(AckMaintenanceEventsForInstanceRequest) returns (MaintenanceEventResponse) {
+    option (google.api.http) = { post: "/maintenance-events/ack" body: "*" };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Acknowledge pending maintenance events for BM"
+      tags: "Breakfix"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; } }
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.MaintenanceEventResponse" }
+          }
+        };
+      }
+    };
+  }
+}
+
+message MaintenanceEventCreatedByEnum{
+  enum MaintenanceEventCreatedBy {
+    UNSPECIFIED = 0;
+    TENANT = 1;
+    PROVIDER = 2;
+  }
+}
+
+message MaintenanceEventPriorityEnum{
+  enum MaintenanceEventPriority {
+    UNSPECIFIED = 0;
+    P0_CRITICAL = 1;
+    P1_HIGH = 2;
+    P2_MEDIUM = 3;
+    P3_LOW = 4;
+  }
+}
+
+message MaintenanceEventSeverityEnum{
+  enum MaintenanceEventSeverity {
+    UNSPECIFIED = 0;
+    S0_CRITICAL = 1;
+    S1_HIGH = 2;
+    S2_MEDIUM = 3;
+    S3_LOW = 4;
+  }
+}
+
+message MaintenanceEventStatusEnum{
+  enum MaintenanceEventStatus {
+    UNSPECIFIED = 0;
+    ACTIVE = 1;
+    CLEARED = 2;
+    REQUESTED = 3;
+  }
+}
+
+// Nested to avoid value collision with OperationStatus.PENDING.
+message MaintenanceEventAckStatusEnum {
+  enum MaintenanceEventAckStatus {
+    UNSPECIFIED = 0;
+    PENDING = 1;
+    ACKED = 2;
+    BYPASSED = 3;
+  }
+}
+message MaintenanceEventAckPolicyEnum {
+  enum MaintenanceEventAckPolicy {
+    UNSPECIFIED = 0;
+    NOT_REQUIRED = 1;
+    REQUIRED = 2;
+    DEADLINE = 3;
+  }
+}
+// Nested to avoid value collisions with FirewallRuleProtocol.ALL and MaintenanceEventStatus.
+message MaintenanceEventListStatusFilterEnum {
+  enum MaintenanceEventListStatusFilter {
+    UNSPECIFIED = 0;
+    ALL = 1;
+    ACTIVE = 2;
+    CLEARED = 3;
+    // Only events currently waiting for tenant information.
+    REQUESTED = 4;
+    // All unresolved events (ACTIVE + REQUESTED). The default; recommended
+    // for continuous polling — polling only ACTIVE cannot observe an
+    // ACTIVE -> REQUESTED transition.
+    OPEN = 5;
+  }
+}
+
+// Nested to avoid value collisions with MaintenanceEventCreatedBy.
+message MaintenanceEventCommentAuthorTypeEnum {
+  enum MaintenanceEventCommentAuthorType {
+    UNSPECIFIED = 0;
+    TENANT = 1;
+    PROVIDER = 2;
+  }
+}
+
+message MaintenanceEventCommentKindEnum {
+  enum MaintenanceEventCommentKind {
+    UNSPECIFIED = 0;
+    // Follow-up or investigation update; no workflow effect.
+    COMMENT = 1;
+    // Provider asked the tenant for more information (event is REQUESTED).
+    INFORMATION_REQUEST = 2;
+    // Tenant reply while the event was REQUESTED.
+    INFORMATION_RESPONSE = 3;
+    // Provider confirmation note when returning REQUESTED to ACTIVE.
+    STATUS_UPDATE = 4;
+    // Resolution text recorded when the event was cleared.
+    RESOLUTION = 5;
+  }
+}
+
+message MaintenanceEventCommentAuthor {
+  MaintenanceEventCommentAuthorTypeEnum.MaintenanceEventCommentAuthorType type = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Who wrote the entry (TENANT or PROVIDER); assigned by the server, never by the caller"}];
+  string id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Author identity snapshot (user/service-account resource ID for tenants; operator ID asserted by the provider backend)"}];
+  optional string display_name = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Human-friendly author name captured at write time"}];
+}
+
+message MaintenanceEventComment {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["id", "event_id", "author", "kind", "text", "created_at"] }
+  };
+  string id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Comment resource ID (format: maintenance-event-comment.ULID)"}];
+  string event_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Parent maintenance event resource ID"}];
+  MaintenanceEventCommentAuthor author = 3;
+  MaintenanceEventCommentKindEnum.MaintenanceEventCommentKind kind = 4;
+  string text = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Immutable plain-text body (max 8192 bytes); render escaped"}];
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message MaintenanceEventConversation {
+  repeated MaintenanceEventComment items = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "One page of conversation entries in chronological order"}];
+  string next_page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token retrieving OLDER entries; empty when the page contains the start of the conversation"}];
+}
+
+message MaintenanceEvent {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["id", "tenant_id", "bm_id", "status", "created_at", "updated_at"] }
+  };
+  string id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maintenance event resource ID (format: maintenance-event.ULID)"}];
+  string tenant_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant resource ID (format: tenant.ULID)"}];
+  string bm_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Bare-metal server resource ID (format: bm.ULID)"}];
+
+  MaintenanceEventCreatedByEnum.MaintenanceEventCreatedBy created_by = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Who created the event (TENANT or PROVIDER)"}];
+
+  optional string code = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Event code identifier"}];
+  MaintenanceEventPriorityEnum.MaintenanceEventPriority priority = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Event priority level"}];
+  MaintenanceEventSeverityEnum.MaintenanceEventSeverity severity = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Event severity level"}];
+  optional string comment = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Optional comment or notes"}];
+
+  MaintenanceEventStatusEnum.MaintenanceEventStatus status = 9 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Event status (ACTIVE, CLEARED, REQUESTED)"}];
+
+  MaintenanceEventAckPolicyEnum.MaintenanceEventAckPolicy ack_policy = 10 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Acknowledgment policy (NOT_REQUIRED, REQUIRED, DEADLINE)"}];
+  MaintenanceEventAckStatusEnum.MaintenanceEventAckStatus ack_status = 11 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Acknowledgment status (PENDING, ACKED, BYPASSED)"}];
+
+  google.protobuf.Timestamp ack_deadline_at = 12 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Deadline for acknowledgment"}];
+  google.protobuf.Timestamp acked_at = 13 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "When the event was acknowledged"}];
+  optional string acked_by = 14 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User resource ID who acknowledged the event"}];
+
+  google.protobuf.Timestamp created_at = 15 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Creation timestamp"}];
+  google.protobuf.Timestamp updated_at = 16 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Last update timestamp"}];
+  google.protobuf.Timestamp cleared_at = 17 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "When the event was cleared"}];
+  optional string external_ref = 18 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Originating system reference (e.g. an operator ticket id) for PROVIDER events"}];
+  optional string reported_by = 19 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Identity of the user who filed a TENANT event (email or user resource id); empty for PROVIDER events"}];
+  optional string bypass_reason = 20 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Why the acknowledgement requirement was bypassed (explicit bypass verb, emergency create, or elapsed ack deadline); unset otherwise"}];
+  google.protobuf.Timestamp bypassed_at = 21 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "When the acknowledgement requirement was bypassed"}];
+  optional string bypassed_by = 22 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "The human operator who authorized the bypass (email or operator id); unset for deadline auto-bypass"}];
+  optional string ticket_url = 23 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant-trackable public URL of the operator ticket backing this event (https://<origin>/share/tickets/<token>); unset when the provider did not publish one"}];
+}
+
+message ListMaintenanceEventsRequest {
+  optional int32 page_size = 1;
+  optional string page_token = 2;
+  optional MaintenanceEventListStatusFilterEnum.MaintenanceEventListStatusFilter status = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Status filter. Defaults to OPEN (ACTIVE + REQUESTED). An explicit ACTIVE returns only ACTIVE rows."}];
+  optional google.protobuf.Timestamp updated_since = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Return events updated after this time — status transitions AND new conversation entries both bump the event's updated_at"}];
+  optional string bm_id = 5;
+}
+
+message ListMaintenanceEventsResponse {
+  repeated MaintenanceEvent items = 1;
+  int32 page_size = 2;
+  string next_page_token = 3;
+}
+
+message GetMaintenanceEventRequest {
+  string event_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maintenance event resource ID (format: maintenance-event.ULID)"}];
+  optional int32 comments_page_size = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Conversation page size (default 50, max 200); the newest entries are returned first"}];
+  optional string comments_page_token = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Conversation page token from a previous response; retrieves older entries"}];
+}
+
+message GetMaintenanceEventResponse {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["event"] }
+  };
+  MaintenanceEvent event = 1;
+  MaintenanceEventConversation conversation = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "One page of the event's conversation in chronological order; the opening issue description stays in event.comment"}];
+}
+
+message AddMaintenanceEventCommentRequest {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["event_id", "text"] }
+  };
+  string event_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maintenance event resource ID (format: maintenance-event.ULID)"}];
+  string text = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Plain-text comment body (max 8192 bytes)"}];
+}
+
+message MaintenanceEventCommentResponse {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["event"] }
+  };
+  MaintenanceEvent event = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Current event summary after the write"}];
+  MaintenanceEventComment comment = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "The created (or idempotently replayed) conversation entry; absent when the action recorded no note (an information-satisfied confirmation without text)"}];
+}
+
+message CreateMaintenanceEventForInstanceRequest {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["bm_id", "code", "severity"] }
+  };
+  string bm_id = 1;
+  optional string code = 2;
+  MaintenanceEventSeverityEnum.MaintenanceEventSeverity severity = 3;
+  optional string comment = 4;
+}
+
+message AckMaintenanceEventRequest { string event_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maintenance event resource ID (format: maintenance-event.ULID)"}]; }
+
+message AckMaintenanceEventsForInstanceRequest { string bm_id = 1; }
+
+message MaintenanceEventResponse {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["event"] }
+  };
+  MaintenanceEvent event = 1;
+}

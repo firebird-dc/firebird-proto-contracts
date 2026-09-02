@@ -1,0 +1,169 @@
+syntax = "proto3";
+
+package firebird.api.v1;
+
+option go_package = "github.com/firebird-dc/firebird-proto-contracts/gen/go;v1";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+// MachineTypeService provides a catalog of available hardware profiles for bare-metal servers.
+// Similar to AWS DescribeInstanceTypes, Azure Resource SKUs, or GCP machineTypes.
+service MachineTypeService {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
+    name: "Machine Types"
+    description: "Hardware profile catalog for bare-metal servers.\n\nMachine types define the hardware specifications (CPU, memory, GPU, storage, network) of bare-metal servers. Use these endpoints to discover available hardware profiles and query capacity.\n\nAll catalog endpoints are public (no authentication required). The capacity summary endpoint requires authentication."
+  };
+
+  // ListMachineTypes lists all available machine types, optionally filtered by category.
+  rpc ListMachineTypes(ListMachineTypesRequest) returns (ListMachineTypesResponse) {
+    option (google.api.http) = {
+      get: "/machine-types"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List machine types";
+      description: "Lists all active machine types. Optionally filter by category (cpu or gpu).";
+      tags: "Machine Types";
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListMachineTypesResponse" }
+          }
+        };
+      }
+    };
+  }
+
+  // GetMachineType retrieves a single machine type by ID.
+  rpc GetMachineType(GetMachineTypeRequest) returns (MachineType) {
+    option (google.api.http) = {
+      get: "/machine-types/{machine_type_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get a machine type by ID";
+      description: "Retrieves the full hardware specification for a single machine type.";
+      tags: "Machine Types";
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.MachineType" }
+          }
+        };
+      }
+      responses: {
+        key: "404"; value: { description: "Machine type not found" };
+      }
+    };
+  }
+
+  // GetCapacitySummary returns per-machine-type inventory counts grouped by lifecycle state.
+  rpc GetCapacitySummary(GetCapacitySummaryRequest) returns (GetCapacitySummaryResponse) {
+    option (google.api.http) = {
+      get: "/compute/capacity"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get capacity summary by machine type";
+      description: "Returns the number of bare-metal servers per machine type, grouped by lifecycle state. Requires authentication.";
+      tags: "Machine Types";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.GetCapacitySummaryResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+    };
+  }
+}
+
+// MachineTypeCategory distinguishes hardware profile classes.
+enum MachineTypeCategory {
+  MACHINE_TYPE_CATEGORY_UNSPECIFIED = 0;
+  CPU = 1;   // CPU-only bare-metal servers
+  GPU = 2;   // GPU-accelerated bare-metal servers
+}
+
+// CpuSpec describes the CPU configuration of a machine type.
+message CpuSpec {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["cores", "threads", "model", "architecture"] }
+  };
+  int32 cores = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Physical CPU cores"}];
+  int32 threads = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Total CPU threads (including SMT/HT)"}];
+  string model = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "CPU model name (e.g. AMD EPYC 9654)"}];
+  string architecture = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "CPU architecture (x86_64, arm64)"}];
+}
+
+// GpuSpec describes the GPU configuration of a machine type. Only present for GPU category.
+message GpuSpec {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["count", "model", "memory_gb"] }
+  };
+  int32 count = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Number of GPUs"}];
+  string model = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "GPU model name (e.g. NVIDIA H100 SXM5 80GB)"}];
+  int32 memory_gb = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "GPU memory per device in GB"}];
+}
+
+// MachineType describes a hardware profile for bare-metal servers.
+message MachineType {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["id", "name", "display_name", "category", "cpu", "memory_gb", "created_at", "updated_at"] }
+  };
+  string id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Machine type resource ID (format: machine-type.ULID)"}];
+  string name = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Machine type name (e.g. bm-gpu-h100.8x)"}];
+  string display_name = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Human-readable display name"}];
+  MachineTypeCategory category = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Hardware category (CPU or GPU)"}];
+  CpuSpec cpu = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "CPU specification"}];
+  int32 memory_gb = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Total memory in GB"}];
+  GpuSpec gpu = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "GPU specification (null for CPU-only types)"}];
+  string storage = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Storage description (e.g. 2x 1.92TB NVMe SSD)"}];
+  int32 network_bandwidth_gbps = 9 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Network bandwidth in Gbps"}];
+  string description = 10 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Optional longer description"}];
+  bool is_active = 13 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Whether this machine type is currently available for provisioning"}];
+  google.protobuf.Timestamp created_at = 11 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Creation timestamp"}];
+  google.protobuf.Timestamp updated_at = 12 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Last update timestamp"}];
+}
+
+// CapacitySummaryEntry shows inventory counts for a single machine type.
+message CapacitySummaryEntry {
+  MachineType machine_type = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Machine type details"}];
+  int32 total = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Total number of servers of this type"}];
+  map<string, int32> count_by_state = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Count per lifecycle state (e.g. available: 3, running: 5)"}];
+}
+
+message ListMachineTypesRequest {
+  string category = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Optional category filter (cpu or gpu)"}];
+  int32 page_size = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maximum number of items to return (default: 20, max: 100)", minimum: 1, maximum: 100, default: "20"}];
+  string page_token = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for fetching the next page of results"}];
+}
+
+message ListMachineTypesResponse {
+  repeated MachineType items = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "List of machine types"}];
+  string next_page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for the next page, empty if no more results"}];
+}
+
+message GetMachineTypeRequest {
+  string machine_type_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Machine type resource ID (format: machine-type.ULID)"}];
+}
+
+message GetCapacitySummaryRequest {}
+
+message GetCapacitySummaryResponse {
+  repeated CapacitySummaryEntry items = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Capacity entries per machine type"}];
+}

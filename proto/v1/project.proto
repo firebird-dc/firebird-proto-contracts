@@ -1,0 +1,288 @@
+syntax = "proto3";
+
+package firebird.api.v1;
+
+option go_package = "github.com/firebird-dc/firebird-proto-contracts/gen/go;v1";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+// ProjectService provides operations for managing projects
+service ProjectService {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
+    name: "Projects"
+    description: "Projects API.\n\nUse this section to:\n- Create and manage projects used to group compute, network and storage resources\n- List projects available to the current tenant\n\nNotes:\n- project id is referenced across other APIs as project_id\n\nPagination:\n- List endpoints use limit and offset"
+  };
+
+  // CreateProject creates a new project
+  rpc CreateProject(CreateProjectRequest) returns (ProjectResponse) {
+    option (google.api.http) = {
+      post: "/projects"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Create a new project";
+      description: "Creates a new project. Returns 201 Created.";
+      tags: "Projects";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "201";
+        value: {
+          description: "Created"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ProjectResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "409"; value: { description: "Project with same name already exists" };
+      }
+    };
+  }
+
+  // GetProject retrieves a project by ID
+  rpc GetProject(GetProjectRequest) returns (ProjectResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get a project by ID";
+      description: "Retrieves a specific project by its unique identifier";
+      tags: "Projects";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ProjectResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+      responses: {
+        key: "404"; value: { description: "Project not found" };
+      }
+    };
+  }
+
+  // ListProjects lists all projects
+  rpc ListProjects(ListProjectsRequest) returns (ListProjectsResponse) {
+    option (google.api.http) = {
+      get: "/projects"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List all projects";
+      description: "Lists all projects for the tenant with pagination support";
+      tags: "Projects";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListProjectsResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+    };
+  }
+
+  // UpdateProject updates an existing project
+  rpc UpdateProject(UpdateProjectRequest) returns (ProjectResponse) {
+    option (google.api.http) = {
+      put: "/projects/{project_id}"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Update a project";
+      description: "Updates an existing project's name and description";
+      tags: "Projects";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ProjectResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Project not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict" };
+      }
+    };
+  }
+
+  // DeleteProject deletes a project
+  rpc DeleteProject(DeleteProjectRequest) returns (DeleteProjectResponse) {
+    option (google.api.http) = {
+      delete: "/projects/{project_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Delete a project";
+      description: "Deletes a project. Fails if project has associated resources.";
+      tags: "Projects";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.DeleteProjectResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Project not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict" };
+      }
+    };
+  }
+}
+
+// Project represents a project that groups compute and storage resources
+message Project {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["id", "tenant_id", "name", "region", "created_at", "updated_at"] }
+  };
+  string id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string tenant_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant resource ID (format: tenant.ULID)"}];
+  string name = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project name"}];
+  string description = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project description"}];
+  google.protobuf.Timestamp created_at = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Creation timestamp"}];
+  google.protobuf.Timestamp updated_at = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Last update timestamp"}];
+  string region = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Region code of this deployment instance"}];
+}
+
+// CreateProjectRequest contains the data needed to create a project
+message CreateProjectRequest {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["name"] }
+  };
+  string name = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Project name. Allowed characters: alphanumeric, hyphens, underscores. Max length: 150."
+    max_length: 150
+    pattern: "^[a-zA-Z0-9_-]+$"
+  }];
+  string description = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project description (optional)"}];
+}
+
+// GetProjectRequest contains the project ID to retrieve
+message GetProjectRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+}
+
+// ListProjectsRequest contains pagination parameters
+message ListProjectsRequest {
+  int32 page_size = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maximum number of items to return (default: 20, max: 100)", minimum: 1, maximum: 100, default: "20"}];
+  string page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for fetching the next page of results"}];
+}
+
+// UpdateProjectRequest contains the data needed to update a project
+message UpdateProjectRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string name = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Updated project name. Allowed characters: alphanumeric, hyphens, underscores. Max length: 150."
+    max_length: 150
+    pattern: "^[a-zA-Z0-9_-]+$"
+  }];
+  string description = 3;          // Updated project description (optional)
+}
+
+// DeleteProjectRequest contains the project ID to delete
+message DeleteProjectRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+}
+
+// ProjectResponse contains a single project
+message ProjectResponse {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["project"] }
+  };
+  Project project = 1;
+}
+
+// ListProjectsResponse contains a list of projects
+message ListProjectsResponse {
+  repeated Project projects = 1;
+  string next_page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for the next page, empty if no more results"}];
+}
+
+// DeleteProjectResponse confirms project deletion
+message DeleteProjectResponse {}

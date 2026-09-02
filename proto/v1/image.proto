@@ -1,0 +1,340 @@
+syntax = "proto3";
+
+package firebird.api.v1;
+
+option go_package = "github.com/firebird-dc/firebird-proto-contracts/gen/go;v1";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+import "operation.proto";
+
+// ImageService provides operations for managing images
+service ImageService {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
+    name: "Images"
+    description: "Image API.\n\nUse this section to:\n- List OS/application images available within a scope\n- Retrieve image metadata (name, version, architecture, size)\n- Upload large image files using a server-mediated multipart upload flow\n\nResource model:\n- Images are scoped by a typed resource ID in the URL: `tenant.ULID` or `project.ULID`\n- Tenant-scoped images are visible to all projects under that tenant\n- Project-scoped images are visible only within that project (plus tenant images)\n- tenant_id is derived from the bearer token; clients do not pass tenant_id in requests\n- Storage internals (URL, checksum, bucket/object paths) are not exposed in API responses\n\nUpload flow (server-mediated multipart):\n1) StartImageUpload — declare the file (name, size, content type) and receive:\n   - upload_id (session identifier)\n   - part_size_bytes (use for every part except the last)\n   - max_in_flight_parts (recommended concurrency)\n2) Upload parts — upload each part by part_number:\n   - gRPC clients: Not supported for gRPC API, use REST API instead.\n   - REST clients: PUT /compute/images/{scope_id}/uploads/{upload_id}/parts/{part_number} with raw binary body\n3) GetImageUploadStatus — optional; returns uploaded parts to support resume/retry\n4) FinishImageUpload — validates contiguous parts (1..N) and total size; returns object_id\n5) AbortImageUpload — cancels an in-progress upload and frees server-side resources\n\nPagination:\n- List endpoints use cursor-based pagination (page_size + page_token)"
+  };
+
+  // ListImages lists all images within a scope.
+  // When scope_id is a project, returns both project-scoped and tenant-scoped images.
+  // When scope_id is a tenant, returns only tenant-scoped images.
+  rpc ListImages(ListImagesRequest) returns (ListImagesResponse) {
+    option (google.api.http) = {
+      get: "/compute/images/{scope_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List images within a scope";
+      description: "Lists images visible within the given scope. Pass a tenant resource ID (tenant.ULID) to list tenant-wide images, or a project resource ID (project.ULID) to list project + tenant images.";
+      tags: "Images";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListImagesResponse" }
+          }
+        };
+      }
+    };
+  }
+
+  // GetImage retrieves an image by ID within a scope.
+  rpc GetImage(GetImageRequest) returns (ImageResponse) {
+    option (google.api.http) = {
+      get: "/compute/images/{scope_id}/{image_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get an image by ID";
+      description: "Retrieves a specific image within the given scope. The scope_id determines visibility: tenant scope sees tenant images; project scope sees project + tenant images.";
+      tags: "Images";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ImageResponse" }
+          }
+        };
+      }
+    };
+  }
+
+  // DeleteImage deletes an image by ID within a scope.
+  // Fails if any bare-metal server currently references this image.
+  rpc DeleteImage(DeleteImageRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      delete: "/compute/images/{scope_id}/{image_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Delete an image";
+      description: "Deletes an image within the given scope. The image must not be referenced by any bare-metal server.";
+      tags: "Images";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: { key: "404"; value: { description: "Image not found" }; }
+      responses: { key: "409"; value: { description: "Image is in use by a bare-metal server" }; }
+    };
+  }
+}
+
+// Image represents an OS or application image (API view; url and checksum are internal only and not exposed)
+message Image {
+  reserved 2, 3, 5, 6;  // tenant_id, project_id (replaced by scope_id), url, checksum — internal only
+  string id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Image resource ID (format: image.ULID)"}];
+  string scope_id = 12 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Scope resource ID: tenant or project that owns this image (format: tenant.ULID or project.ULID)"}];
+  string name = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Image name"}];
+  optional string version = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Image version or tag"}];
+  optional string architecture = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "CPU architecture (e.g. x86_64, arm64)"}];
+  optional int64 size_bytes = 9 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Image size in bytes", type: INTEGER, format: "int64"}];
+  google.protobuf.Timestamp created_at = 10 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Creation timestamp"}];
+  google.protobuf.Timestamp updated_at = 11 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Last update timestamp"}];
+}
+
+// ListImagesRequest represents a request to list images within a scope.
+message ListImagesRequest {
+  string scope_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Scope resource ID (format: tenant.ULID or project.ULID)"}];
+  int32 page_size = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maximum number of items to return (default: 20, max: 100)", minimum: 1, maximum: 100, default: "20"}];
+  string page_token = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for fetching the next page of results"}];
+}
+
+// ListImagesResponse represents a paginated list of images
+message ListImagesResponse {
+  repeated Image items = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "List of images"}];
+  string next_page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for the next page, empty if no more results"}];
+}
+
+// GetImageRequest represents a request to get an image within a scope.
+message GetImageRequest {
+  string scope_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Scope resource ID (format: tenant.ULID or project.ULID)"}];
+  string image_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Image resource ID (format: image.ULID)"}];
+}
+
+// DeleteImageRequest represents a request to delete an image within a scope.
+message DeleteImageRequest {
+  string scope_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Scope resource ID (format: tenant.ULID or project.ULID)"}];
+  string image_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Image resource ID (format: image.ULID)"}];
+}
+
+// ImageResponse represents an image in API responses
+message ImageResponse {
+  Image image = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Image details"}];
+}
+
+// ImageUploadService handles server-mediated multipart uploads for image files.
+// Object-storage internals are never exposed — clients interact only with upload_id and object_id.
+//
+// Upload flow:
+//   1. StartImageUpload — declare file; receive upload_id and part_size_bytes
+//   2. Upload parts via gRPC streaming (Upload RPC) or REST binary (PUT .../parts/{n})
+//   3. GetImageUploadStatus — check uploaded parts for resume after failure
+//   4. FinishImageUpload — validate and finalize; receive object_id
+//   5. AbortImageUpload — cancel and free storage resources
+service ImageUploadService {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
+    name: "Images"
+    description: "Image upload API.\n\nServer-mediated multipart upload for large image files.\n\nStorage internals are never exposed. Clients interact only with `upload_id` and `object_id`.\n\nThe `scope_id` in the URL determines where the uploaded image will be stored:\n- `tenant.ULID` — tenant-scoped image (visible to all projects)\n- `project.ULID` — project-scoped image (visible only in that project)\n\n**For REST clients**, use `PUT /api/v1/compute/images/{scope_id}/uploads/{upload_id}/parts/{part_number}` with a raw binary body to upload individual parts."
+  };
+
+  // StartImageUpload creates a new upload session for an image file.
+  rpc StartImageUpload(StartImageUploadRequest) returns (StartImageUploadResponse) {
+    option (google.api.http) = {
+      post: "/compute/images/{scope_id}/uploads"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Start a new image upload session"
+      description: "Declares a new large image file upload within the given scope. Returns an `upload_id` and the server-computed `part_size_bytes` to use for all parts except the last.\n\nThe scope_id determines image visibility after upload completes:\n- `tenant.ULID` — image visible to all projects under the tenant\n- `project.ULID` — image visible only within that project"
+      operation_id: "StartImageUpload"
+      tags: "Images"
+      security: { security_requirement: { key: "BearerAuth" value: {} } }
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.StartImageUploadResponse" }
+          }
+        };
+      }
+    };
+  }
+
+  // UploadImageParts streams image file parts via gRPC client streaming.
+  // Each frame carries chunk data; set part_end = true on the last frame of each part.
+  // For REST clients, use PUT /api/v1/compute/images/uploads/{upload_id}/parts/{part_number} instead.
+  rpc UploadImageParts(stream ImageUploadPartFrame) returns (ImageUploadPartsResponse);
+
+  // GetImageUploadStatus returns the session state and successfully uploaded parts.
+  // Use this to implement resume logic after a network failure.
+  rpc GetImageUploadStatus(GetImageUploadStatusRequest) returns (GetImageUploadStatusResponse) {
+    option (google.api.http) = {
+      get: "/compute/images/uploads/{upload_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get image upload status and uploaded parts"
+      description: "Returns the upload session state and the list of parts that have been successfully uploaded to storage.\n\nUse the returned part list to implement client-side resume: re-upload any missing parts before calling `FinishImageUpload`."
+      operation_id: "GetImageUploadStatus"
+      tags: "Images"
+      security: { security_requirement: { key: "BearerAuth" value: {} } }
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.GetImageUploadStatusResponse" }
+          }
+        };
+      }
+    };
+  }
+
+  // FinishImageUpload validates and completes a multipart upload.
+  // Parts must be contiguous (1..N) and total size must match the declared size_bytes.
+  rpc FinishImageUpload(FinishImageUploadRequest) returns (FinishImageUploadResponse) {
+    option (google.api.http) = {
+      post: "/compute/images/uploads/{upload_id}/complete"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Finalize a completed image upload"
+      description: "Validates that all parts are uploaded contiguously (1..N) and total size matches declared `size_bytes`. Completes the multipart upload and marks the session COMPLETE.\n\nReturns `object_id` — the permanent reference to the uploaded image file. If already COMPLETE, returns the existing `object_id`."
+      operation_id: "FinishImageUpload"
+      tags: "Images"
+      security: { security_requirement: { key: "BearerAuth" value: {} } }
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.FinishImageUploadResponse" }
+          }
+        };
+      }
+    };
+  }
+
+  // AbortImageUpload cancels an in-progress upload and frees storage resources.
+  rpc AbortImageUpload(AbortImageUploadRequest) returns (AbortImageUploadResponse) {
+    option (google.api.http) = {
+      delete: "/compute/images/uploads/{upload_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Abort an image upload session"
+      description: "Cancels an in-progress upload, frees server-side storage resources, and marks the session ABORTED. If already ABORTED, returns successfully."
+      operation_id: "AbortImageUpload"
+      tags: "Images"
+      security: { security_requirement: { key: "BearerAuth" value: {} } }
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.AbortImageUploadResponse" }
+          }
+        };
+      }
+    };
+  }
+}
+
+message StartImageUploadRequest {
+  string scope_id      = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Scope resource ID (format: tenant.ULID or project.ULID)"}];
+  string filename      = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Name of the image file to upload"}];
+  string content_type  = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "MIME type of the image file (e.g. application/octet-stream, image/x-qcow2)"}];
+  int64  size_bytes    = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Total file size in bytes; used to compute part_size_bytes and validated at finish", type: INTEGER, format: "int64"}];
+  string name          = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Human-readable image name (e.g. ubuntu-server). Used as the image catalog entry name."}];
+  optional string version      = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Image version or tag (e.g. 24.04)"}];
+  optional string architecture = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "CPU architecture (e.g. x86_64, arm64)"}];
+}
+
+message StartImageUploadResponse {
+  string upload_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Upload session identifier"}];
+  int64  part_size_bytes     = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Server-computed part size in bytes; use for all parts except the last", type: INTEGER, format: "int64"}];
+  int32  max_in_flight_parts = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Recommended maximum number of concurrent in-flight part uploads"}];
+  google.protobuf.Timestamp expires_at = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Time after which the upload session expires"}];
+}
+
+// ImageUploadPartFrame is a single chunk within a client-streaming UploadImageParts RPC.
+message ImageUploadPartFrame {
+  string upload_id   = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Upload session identifier"}];
+  int32  part_number = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Part number starting at 1", type: INTEGER, format: "int32"}];
+  bytes  data        = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Raw binary data for this frame"}];
+  bool   part_end    = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Set true on the last frame of a part to trigger the storage upload"}];
+}
+
+message ImageUploadPartsResponse {
+  repeated ImageUploadedPart parts = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Successfully uploaded parts"}];
+}
+
+// Field numbers intentionally differ from the original proto (upload_id was field 1
+// in the original; scope_id was added as field 1 in StartImageUploadRequest).
+// No backward compatibility is required at this stage.
+message GetImageUploadStatusRequest {
+  string upload_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Upload session ID"}];
+}
+
+message GetImageUploadStatusResponse {
+  string upload_id  = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Upload session identifier"}];
+  string status     = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Upload status: UPLOADING, FINISHING, COMPLETE, ABORTED, or FAILED"}];
+  int64  size_bytes = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Declared total file size in bytes", type: INTEGER, format: "int64"}];
+  repeated ImageUploadedPart parts = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Successfully uploaded parts"}];
+  bool expired  = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Whether the upload session has expired"}];
+  bool aborted  = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Whether the upload was aborted"}];
+  bool finished = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Whether the upload is complete"}];
+  google.protobuf.Timestamp expires_at = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Time after which the upload session expires"}];
+}
+
+message FinishImageUploadRequest {
+  string upload_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Upload session ID"}];
+  optional string checksum = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Content hash of the complete file (e.g. SHA-256 hex digest). Required for bare-metal provisioning. Algorithm defaults to sha256 if checksum_algorithm is omitted."}];
+  optional string checksum_algorithm = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Hash algorithm used for checksum: md5, sha256, sha512. Defaults to sha256 if checksum is provided."}];
+}
+
+message FinishImageUploadResponse {
+  string upload_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Upload session identifier"}];
+  string object_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Permanent reference to the uploaded image file"}];
+  string status    = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Upload status after finalization"}];
+  string image_id  = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "ID of the created image catalog entry (format: image.ULID)"}];
+}
+
+message AbortImageUploadRequest {
+  string upload_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Upload session ID"}];
+}
+
+message AbortImageUploadResponse {
+  string upload_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Upload session identifier"}];
+  string status    = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Upload status after abort"}];
+}
+
+// ImageUploadedPart represents a successfully uploaded part.
+message ImageUploadedPart {
+  int32  part_number = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Part number (1-based)"}];
+  string etag        = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Entity tag returned by storage after successful upload"}];
+  int64  size_bytes  = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Size of this part in bytes", type: INTEGER, format: "int64"}];
+}

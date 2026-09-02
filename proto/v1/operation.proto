@@ -1,0 +1,105 @@
+syntax = "proto3";
+
+package firebird.api.v1;
+
+option go_package = "github.com/firebird-dc/firebird-proto-contracts/gen/go;v1";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+import "common.proto";
+
+// OperationService provides endpoints for querying async operations.
+service OperationService {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
+    name: "Operations"
+    description: "Async Operation tracking API.\n\nAsynchronous mutations return an Operation that can be polled for progress; an endpoint's response schema determines whether an operation must be polled (synchronous mutations return their resource directly).\n\n- GET /operations/{id} returns current status\n- GET /operations lists operations for the tenant"
+  };
+
+  // GetOperation retrieves an operation by ID
+  rpc GetOperation(GetOperationRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      get: "/operations/{operation_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get an operation by ID"
+      description: "Returns the current status of an async operation."
+      tags: "Operations"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "404"; value: { description: "Operation not found" };
+      }
+    };
+  }
+
+  // ListOperations lists operations for the tenant
+  rpc ListOperations(ListOperationsRequest) returns (ListOperationsResponse) {
+    option (google.api.http) = {
+      get: "/operations"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List operations"
+      description: "Lists operations for the authenticated tenant. Supports filtering by status, and by entityType together with entityId (both must be supplied together). In the REST API the filter query parameters are entityType and entityId; each returned operation carries entityType and resourceId."
+      tags: "Operations"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListOperationsResponse" }
+          }
+        };
+      }
+    };
+  }
+}
+
+// Operation represents a user-facing async operation.
+message Operation {
+  string id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Operation resource ID (format: operation.ULID)"}];
+  OperationAction action = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Type of operation"}];
+  OperationStatus status = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Current status"}];
+  EntityTypeEnum.EntityType entity_type = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Type of target entity"}];
+  string resource_id = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Target resource ID"}];
+  optional OperationError error = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Error details (only present when status is FAILED)"}];
+  google.protobuf.Timestamp created_at = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "When the operation was created"}];
+  google.protobuf.Timestamp updated_at = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "When the operation was last updated"}];
+}
+
+// OperationError contains details about an operation failure.
+message OperationError {
+  string code = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Machine-readable error code"}];
+  string message = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Human-readable error message"}];
+}
+
+// OperationResponse wraps a single Operation.
+message OperationResponse {
+  Operation operation = 1;
+}
+
+message GetOperationRequest {
+  string operation_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Operation resource ID (format: operation.ULID)"}];
+}
+
+message ListOperationsRequest {
+  int32 page_size = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maximum number of items to return (default: 20, max: 100)", minimum: 1, maximum: 100, default: "20"}];
+  string page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for fetching the next page of results"}];
+  optional string status = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Filter by status (PENDING, IN_PROGRESS, COMPLETED, FAILED)"}];
+  optional EntityTypeEnum.EntityType entity_type = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Filter by entity type. Must be provided together with entity_id."}];
+  optional string entity_id = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Filter by entity resource ID. Must be provided together with entity_type."}];
+}
+
+message ListOperationsResponse {
+  repeated Operation items = 1;
+  string next_page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for the next page, empty if no more results"}];
+}

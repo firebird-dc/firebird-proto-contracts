@@ -1,0 +1,943 @@
+syntax = "proto3";
+
+package firebird.api.v1;
+
+option go_package = "github.com/firebird-dc/firebird-proto-contracts/gen/go;v1";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+import "common.proto";
+import "operation.proto";
+import "network_acl.proto";  // CreateSubnetRequest.network_acl
+
+// VPC/Subnet/FirewallRule types do not depend on bm.proto; keep this file independent to avoid accidental re-coupling.
+
+// OpenAPI/Swagger metadata — single canonical block for the merged spec.
+// Other proto files must NOT define openapiv2_swagger (only one wins with allow_merge).
+
+
+// VPCService provides operations for managing VPCs
+service VPCService {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
+    name: "Network"
+    description: "Network (VPC) API.\n\nUse this section to:\n- Create and manage VPCs within a project\n- Manage subnets under a VPC\n- Manage firewall rules for network traffic control\n\nCommon fields:\n- project_id scopes all operations\n- vpc_id scopes subnet operations\n\nNotes:\n- state reflects lifecycle (PROVISIONING/READY/ERROR/DELETING)\n\nPagination:\n- List endpoints use limit and offset"
+  };
+
+  // CreateVPC creates a new VPC
+  rpc CreateVPC(CreateVPCRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      post: "/projects/{project_id}/network/vpcs"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Create a VPC"
+      description: "Creates a new VPC and initiates async provisioning via the network controller."
+      tags: "Network"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "409"; value: { description: "VPC with same name already exists in this project" };
+      }
+      responses: {
+        key: "429"; value: { description: "Quota exceeded — tenant would exceed one or more quota limits. Response details carry dimension/limit/used/reserved/requested for the first breached dimension and a full breaches array." };
+      }
+    };
+  }
+
+  // GetVPC retrieves a VPC by ID
+  rpc GetVPC(GetVPCRequest) returns (VPCResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/network/vpcs/{vpc_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get a VPC by ID"
+      tags: "Network"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.VPCResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (malformed ID)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+      responses: {
+        key: "404"; value: { description: "VPC not found" };
+      }
+    };
+  }
+  
+  // ListVPCs lists all VPCs with pagination
+  rpc ListVPCs(ListVPCsRequest) returns (ListVPCsResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/network/vpcs"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List all VPCs"
+      tags: "Network"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListVPCsResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (malformed parameters)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+    };
+  }
+
+  // ListVPCsWithSubnets lists all VPCs with their subnets included
+  rpc ListVPCsWithSubnets(ListVPCsWithSubnetsRequest) returns (ListVPCsWithSubnetsResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/network/vpcs-with-subnets"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List all VPCs with their subnets"
+      description: "Returns a paginated list of VPCs, each including all its subnets."
+      tags: "Network"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListVPCsWithSubnetsResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (malformed parameters)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+    };
+  }
+  
+  // UpdateVPC updates an existing VPC
+  rpc UpdateVPC(UpdateVPCRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      put: "/projects/{project_id}/network/vpcs/{vpc_id}"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Update a VPC"
+      description: "Updates the name of an existing VPC."
+      tags: "Network"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "VPC not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict (e.g. name already exists)" };
+      }
+    };
+  }
+
+  // DeleteVPC deletes a VPC
+  rpc DeleteVPC(DeleteVPCRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      delete: "/projects/{project_id}/network/vpcs/{vpc_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Delete a VPC"
+      description: "Initiates async VPC deletion via the network controller."
+      tags: "Network"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (malformed ID)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "VPC not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "VPC has dependent resources (subnets)" };
+      }
+    };
+  }
+
+  // CreateSubnet creates a new Subnet under a VPC
+  rpc CreateSubnet(CreateSubnetRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      post: "/projects/{project_id}/network/vpcs/{vpc_id}/subnets"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Create a subnet"
+      description: "Creates a new subnet in a VPC and initiates async provisioning."
+      tags: "Network"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields, invalid CIDR)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "409"; value: { description: "Subnet with same name or overlapping CIDR already exists" };
+      }
+      responses: {
+        key: "429"; value: { description: "Quota exceeded — tenant would exceed one or more quota limits. Response details carry dimension/limit/used/reserved/requested for the first breached dimension and a full breaches array." };
+      }
+    };
+  }
+
+  // GetSubnet retrieves a Subnet by ID
+  rpc GetSubnet(GetSubnetRequest) returns (SubnetResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/network/vpcs/{vpc_id}/subnets/{subnet_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get a subnet by ID"
+      tags: "Network"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.SubnetResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (malformed ID)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+      responses: {
+        key: "404"; value: { description: "Subnet not found" };
+      }
+    };
+  }
+
+  // ListSubnets lists Subnets for a VPC with pagination
+  rpc ListSubnets(ListSubnetsRequest) returns (ListSubnetsResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/network/vpcs/{vpc_id}/subnets"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List subnets for a VPC"
+      tags: "Network"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListSubnetsResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (malformed parameters)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+    };
+  }
+
+  // UpdateSubnet updates an existing Subnet
+  rpc UpdateSubnet(UpdateSubnetRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      put: "/projects/{project_id}/network/vpcs/{vpc_id}/subnets/{subnet_id}"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Update a subnet"
+      description: "Updates the name and/or CIDR of an existing subnet."
+      tags: "Network"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields, invalid CIDR)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Subnet not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict (e.g. name already exists)" };
+      }
+    };
+  }
+
+  // DeleteSubnet deletes a Subnet
+  rpc DeleteSubnet(DeleteSubnetRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      delete: "/projects/{project_id}/network/vpcs/{vpc_id}/subnets/{subnet_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Delete a subnet"
+      description: "Initiates async subnet deletion via the network controller."
+      tags: "Network"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (malformed ID)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Subnet not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Subnet has attached bare-metal servers" };
+      }
+    };
+  }
+
+
+  // CreateFirewallRule creates a new firewall rule
+  rpc CreateFirewallRule(CreateFirewallRuleRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      post: "/projects/{project_id}/network/vpcs/{vpc_id}/firewall-rules"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Create a firewall rule"
+      description: "Creates a new firewall rule and initiates async provisioning."
+      tags: "Network"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "409"; value: { description: "Firewall rule with same name already exists" };
+      }
+    };
+  }
+
+  // GetFirewallRule retrieves a firewall rule by ID
+  rpc GetFirewallRule(GetFirewallRuleRequest) returns (FirewallRuleResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/network/vpcs/{vpc_id}/firewall-rules/{rule_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get a firewall rule by ID"
+      tags: "Network"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.FirewallRuleResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (malformed ID)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+      responses: {
+        key: "404"; value: { description: "Firewall rule not found" };
+      }
+    };
+  }
+
+  // ListFirewallRules lists firewall rules for a VPC with pagination
+  rpc ListFirewallRules(ListFirewallRulesRequest) returns (ListFirewallRulesResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/network/vpcs/{vpc_id}/firewall-rules"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List firewall rules"
+      tags: "Network"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListFirewallRulesResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (malformed parameters)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+    };
+  }
+
+  // UpdateFirewallRule updates an existing firewall rule
+  rpc UpdateFirewallRule(UpdateFirewallRuleRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      put: "/projects/{project_id}/network/vpcs/{vpc_id}/firewall-rules/{rule_id}"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Update a firewall rule"
+      description: "Updates a firewall rule and initiates async reconciliation."
+      tags: "Network"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Firewall rule not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict (e.g. name already exists)" };
+      }
+    };
+  }
+
+  // DeleteFirewallRule deletes a firewall rule
+  rpc DeleteFirewallRule(DeleteFirewallRuleRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      delete: "/projects/{project_id}/network/vpcs/{vpc_id}/firewall-rules/{rule_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Delete a firewall rule"
+      description: "Initiates async firewall rule deletion."
+      tags: "Network"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (malformed ID)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Firewall rule not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Rule is in a transitional state" };
+      }
+    };
+  }
+}
+
+// VPCLifecycleState is a message wrapper containing the lifecycle state enum for VPC, Subnet, and FirewallRule.
+// Nested in a message so enum value names (PROVISIONING, READY, ERROR, DELETING) do not conflict with FilesystemState in the same package.
+message VPCLifecycleState {
+  enum State {
+    UNSPECIFIED = 0;
+    PROVISIONING = 1; // Resource is being created or configured by the provider
+    READY = 2;        // Resource is fully operational
+    DELETING = 3;     // Resource deletion is in progress
+    ERROR = 4;        // Create/update failed permanently; needs a fresh operation to recover
+  }
+}
+
+// VPC represents a virtual private cloud
+message VPC {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["id", "tenant_id", "project_id", "name", "state", "created_at", "updated_at"] }
+  };
+  string id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "VPC resource ID (format: vpc.ULID)"}];
+  string tenant_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant resource ID (format: tenant.ULID)"}];
+  string project_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string name = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Human-readable VPC name"}];
+  string cidr = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "IPv4 CIDR block for this VPC"}];
+  VPCLifecycleState.State state = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Current lifecycle state (PROVISIONING, READY, ERROR, DELETING)"}];
+
+  google.protobuf.Timestamp created_at = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Creation timestamp"}];
+  google.protobuf.Timestamp updated_at = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Last update timestamp"}];
+
+  optional ResourceError error = 9 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Most recent provisioning failure. Present while state is ERROR; cleared when the VPC recovers."}];
+}
+
+// tenant_id is extracted from the bearer token, not from the request
+message CreateVPCRequest {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["name"] }
+  };
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string name = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "VPC name. Allowed characters: alphanumeric, hyphens, underscores. Max length: 150."
+    max_length: 150
+    pattern: "^[a-zA-Z0-9_-]+$"
+  }];
+  optional string cidr = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Optional IPv4 CIDR block within RFC 1918 private space (10.0.0.0/8, 172.16.0.0/16, or 192.168.0.0/16). "
+                 "Prefix length MUST be one of /8, /16, or /24 — reverse-DNS zones (in-addr.arpa) require byte-aligned "
+                 "prefixes so downstream DNS ops can own each zone cleanly. Examples: 10.0.0.0/8, 192.168.0.0/16, "
+                 "192.168.1.0/24."
+    example: "\"10.0.0.0/16\""
+  }];
+}
+
+// GetVPCRequest represents a request to get a VPC
+message GetVPCRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string vpc_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "VPC resource ID (format: vpc.ULID)"}];
+}
+
+// ListVPCsRequest represents a request to list VPCs
+// tenant_id is extracted from the bearer token, not from the request
+message ListVPCsRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  int32 page_size = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maximum number of items to return (default: 20, max: 100)", minimum: 1, maximum: 100, default: "20"}];
+  string page_token = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for fetching the next page of results"}];
+}
+
+// ListVPCsResponse represents a paginated list of VPCs
+message ListVPCsResponse {
+  repeated VPC items = 1;
+  string next_page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for the next page, empty if no more results"}];
+}
+
+// VPCWithSubnets represents a VPC with all its subnets
+message VPCWithSubnets {
+  VPC vpc = 1;
+  repeated Subnet subnets = 2;
+}
+
+// ListVPCsWithSubnetsRequest represents a request to list VPCs with their subnets
+// tenant_id is extracted from the bearer token, not from the request
+message ListVPCsWithSubnetsRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  int32 page_size = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maximum number of VPCs to return (default: 20, max: 100)", minimum: 1, maximum: 100, default: "20"}];
+  string page_token = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for fetching the next page of results"}];
+}
+
+// ListVPCsWithSubnetsResponse represents a paginated list of VPCs with their subnets
+message ListVPCsWithSubnetsResponse {
+  repeated VPCWithSubnets items = 1;
+  string next_page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for the next page, empty if no more results"}];
+}
+
+// UpdateVPCRequest represents a request to update a VPC
+message UpdateVPCRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string vpc_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "VPC resource ID (format: vpc.ULID)"}];
+  optional string name = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Updated VPC name. Allowed characters: alphanumeric, hyphens, underscores. Max length: 150."
+    max_length: 150
+    pattern: "^[a-zA-Z0-9_-]+$"
+  }];
+  optional string cidr = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Updated IPv4 CIDR block. Same validation as CreateVPCRequest.cidr: must be within RFC 1918 "
+                 "private space (10.0.0.0/8, 172.16.0.0/16, 192.168.0.0/16) with a prefix length of /8, /16, or /24."
+    example: "\"10.0.0.0/16\""
+  }];
+}
+
+// DeleteVPCRequest represents a request to delete a VPC
+message DeleteVPCRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string vpc_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "VPC resource ID (format: vpc.ULID)"}];
+}
+
+// VPCResponse represents a VPC in API responses
+message VPCResponse {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["vpc"] }
+  };
+  VPC vpc = 1;
+}
+
+
+// Subnet represents a subnet within a VPC
+message Subnet {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["id", "tenant_id", "project_id", "vpc_id", "name", "cidr", "gateway_ip", "state", "created_at", "updated_at"] }
+  };
+  string id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Subnet resource ID (format: subnet.ULID)"}];
+  string tenant_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant resource ID (format: tenant.ULID)"}];
+  string project_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string vpc_id = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Parent VPC resource ID (format: vpc.ULID)"}];
+  string name = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Human-readable subnet name"}];
+  string cidr = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "IPv4 CIDR block (e.g. 10.0.0.0/24)"}];
+  string gateway_ip = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Gateway IP address (first usable IP in CIDR range, e.g. 10.0.0.1)"}];
+  VPCLifecycleState.State state = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Current lifecycle state (PROVISIONING, READY, ERROR, DELETING)"}];
+
+  google.protobuf.Timestamp created_at = 10 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Creation timestamp"}];
+  google.protobuf.Timestamp updated_at = 11 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Last update timestamp"}];
+
+  optional ResourceError error = 12 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Most recent provisioning failure. Present while state is ERROR; cleared when the subnet recovers."}];
+}
+
+message CreateSubnetRequest {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["name", "cidr", "gateway_ip"] }
+  };
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string vpc_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "VPC resource ID (format: vpc.ULID)"}];
+  string name = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Subnet name. Allowed characters: alphanumeric, hyphens, underscores. Max length: 150."
+    max_length: 150
+    pattern: "^[a-zA-Z0-9_-]+$"
+  }];
+  string cidr = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "IPv4 CIDR block (e.g. 10.0.0.0/24)"}];
+  string gateway_ip = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Gateway IPv4 address without a prefix (e.g. 192.0.2.1). It must be a usable address inside cidr; the CIDR prefix is added when the network is provisioned."
+    example: "\"192.0.2.1\""
+  }];
+  // Optional Network ACL, created together with the subnet in one operation.
+  // Omit it to create the subnet with no ACL, which permits all traffic — that
+  // is the default and can be set later via PUT .../subnets/{subnet_id}/acl.
+  optional NetworkACLSpec network_acl = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Optional Network ACL to apply to the new subnet. Omit for no ACL (all traffic allowed)."
+  }];
+}
+
+
+message GetSubnetRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string vpc_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "VPC resource ID (format: vpc.ULID)"}];
+  string subnet_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Subnet resource ID (format: subnet.ULID)"}];
+}
+
+message ListSubnetsRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string vpc_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "VPC resource ID (format: vpc.ULID)"}];
+  int32 page_size = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maximum number of items to return (default: 20, max: 100)", minimum: 1, maximum: 100, default: "20"}];
+  string page_token = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for fetching the next page of results"}];
+}
+
+message ListSubnetsResponse {
+  repeated Subnet items = 1;
+  string next_page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for the next page, empty if no more results"}];
+}
+
+message SubnetResponse {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["subnet"] }
+  };
+  Subnet subnet = 1;
+}
+
+message UpdateSubnetRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string vpc_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "VPC resource ID (format: vpc.ULID)"}];
+  string subnet_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Subnet resource ID (format: subnet.ULID)"}];
+  optional string name = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Updated subnet name. Allowed characters: alphanumeric, hyphens, underscores. Max length: 150."
+    max_length: 150
+    pattern: "^[a-zA-Z0-9_-]+$"
+  }];
+  optional string cidr = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Updated IPv4 CIDR block (e.g. 10.0.0.0/24)"}];
+}
+
+message DeleteSubnetRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string vpc_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "VPC resource ID (format: vpc.ULID)"}];
+  string subnet_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Subnet resource ID (format: subnet.ULID)"}];
+}
+
+
+// FirewallRuleProtocol represents allowed protocol values for firewall rules
+message FirewallRuleProtocolEnum {
+  enum FirewallRuleProtocol {
+    UNSPECIFIED = 0;
+    ALL = 1;  // Match all protocols
+    TCP = 2;  // Transmission Control Protocol
+    UDP = 3;  // User Datagram Protocol
+    ICMP = 4; // Internet Control Message Protocol
+  }
+}
+// FirewallRuleAction represents action values for firewall rules
+message FirewallRuleActionEnum{
+  enum FirewallRuleAction {
+    UNSPECIFIED = 0;
+    ALLOW = 1; // Allow matching traffic
+    DENY = 2;  // Deny matching traffic
+  }
+}
+
+// FirewallRule represents a firewall rule
+message FirewallRule {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["id", "tenant_id", "project_id", "vpc_id", "name", "state", "created_at", "updated_at"] }
+  };
+  string id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Firewall rule resource ID (format: firewall-rule.ULID)"}];
+  string tenant_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant resource ID (format: tenant.ULID)"}];
+  string project_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string vpc_id = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "VPC resource ID this rule applies to (format: vpc.ULID)"}];
+  string name = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Human-readable rule name"}];
+  FirewallRuleProtocolEnum.FirewallRuleProtocol protocol = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Protocol: ALL, TCP, UDP, or ICMP"}];
+  reserved 7, 8, 9;
+  bool stateful = 10 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "When true, return traffic is automatically allowed"}];
+  reserved 11;
+  optional int32 src_port_from = 12 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Source port range start (1-65535)"}];
+  optional int32 src_port_to = 13 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Source port range end (1-65535)"}];
+  optional int32 dst_port_from = 14 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Destination port range start (1-65535)"}];
+  optional int32 dst_port_to = 15 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Destination port range end (1-65535)"}];
+  string src_prefix = 16 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Source IP prefix in CIDR notation (e.g. 10.0.0.0/24)"}];
+  string dst_prefix = 17 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Destination IP prefix in CIDR notation (e.g. 0.0.0.0/0)"}];
+  FirewallRuleActionEnum.FirewallRuleAction action = 18 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Action: ALLOW or DENY"}];
+  reserved 19;
+  VPCLifecycleState.State state = 20 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Current lifecycle state (PROVISIONING, READY, ERROR, DELETING)"}];
+
+  google.protobuf.Timestamp created_at = 22 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Creation timestamp"}];
+  google.protobuf.Timestamp updated_at = 23 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Last update timestamp"}];
+  optional int32 icmp_type = 24 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "ICMP type number (0-255). Only valid when protocol is ICMP. Omit for all ICMP types."}];
+}
+
+message CreateFirewallRuleRequest {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["name", "action", "protocol"] }
+  };
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string vpc_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "VPC resource ID (format: vpc.ULID)"}];
+  string name = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Firewall rule name. Allowed characters: alphanumeric, hyphens, underscores. Max length: 150."
+    max_length: 150
+    pattern: "^[a-zA-Z0-9_-]+$"
+  }];
+  FirewallRuleProtocolEnum.FirewallRuleProtocol protocol = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Protocol: ALL, TCP, UDP, or ICMP (default: ALL)";
+    example: "\"ALL\"";
+  }];
+  reserved 5, 6, 7;
+  bool stateful = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Allow return traffic automatically (default: false)";
+  }];
+  reserved 9;
+  optional int32 src_port_from = 10 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Source port range start (1-65535, only for tcp/udp)";
+  }];
+  optional int32 src_port_to = 11 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Source port range end (1-65535, only for tcp/udp)";
+  }];
+  optional int32 dst_port_from = 12 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Destination port range start (1-65535, only for tcp/udp)";
+  }];
+  optional int32 dst_port_to = 13 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Destination port range end (1-65535, only for tcp/udp)";
+  }];
+  string src_prefix = 14 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Source IP prefix in CIDR format (e.g., '10.0.0.0/24')";
+  }];
+  string dst_prefix = 15 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Destination IP prefix in CIDR format (e.g., '0.0.0.0/0')";
+  }];
+  FirewallRuleActionEnum.FirewallRuleAction action = 16 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Action: ALLOW or DENY";
+    example: "\"ALLOW\"";
+  }];
+  reserved 17;
+  optional int32 icmp_type = 18 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "ICMP type number (0-255). Only valid when protocol is ICMP. Omit for all ICMP types."}];
+}
+
+message GetFirewallRuleRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string rule_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Firewall rule resource ID (format: firewall-rule.ULID)"}];
+  string vpc_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "VPC resource ID (format: vpc.ULID)"}];
+}
+
+message ListFirewallRulesRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string vpc_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "VPC resource ID (format: vpc.ULID). Required for VPC-scoped route; optional as a filter for project-scoped route."
+  }];
+  int32 page_size = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maximum number of items to return (default: 20, max: 100)", minimum: 1, maximum: 100, default: "20"}];
+  string page_token = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for fetching the next page of results"}];
+}
+
+message ListFirewallRulesResponse {
+  repeated FirewallRule items = 1;
+  string next_page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for the next page, empty if no more results"}];
+}
+
+message UpdateFirewallRuleRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string rule_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Firewall rule resource ID (format: firewall-rule.ULID)"}];
+  string vpc_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "VPC resource ID (format: vpc.ULID)"}];
+
+  optional string name = 4;
+  optional FirewallRuleProtocolEnum.FirewallRuleProtocol protocol = 5;
+  reserved 6, 7, 8;
+  optional bool stateful = 9;
+  reserved 10;
+  optional int32 src_port_from = 11;
+  optional int32 src_port_to = 12;
+  optional int32 dst_port_from = 13;
+  optional int32 dst_port_to = 14;
+  optional string src_prefix = 15;
+  optional string dst_prefix = 16;
+  optional FirewallRuleActionEnum.FirewallRuleAction action = 17;
+  reserved 18;
+  optional int32 icmp_type = 19 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "ICMP type number (0-255). Only valid when protocol is ICMP. Omit for all ICMP types."}];
+}
+
+message FirewallRuleResponse {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["firewall_rule"] }
+  };
+  FirewallRule firewall_rule = 1;
+}
+
+message DeleteFirewallRuleRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string rule_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Firewall rule resource ID (format: firewall-rule.ULID)"}];
+  string vpc_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "VPC resource ID (format: vpc.ULID)"}];
+}
+

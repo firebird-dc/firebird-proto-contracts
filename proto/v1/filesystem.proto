@@ -1,0 +1,446 @@
+syntax = "proto3";
+
+package firebird.api.v1;
+
+option go_package = "github.com/firebird-dc/firebird-proto-contracts/gen/go;v1";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+import "common.proto";
+import "operation.proto";
+
+service FilesystemService {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
+    name: "Storage"
+    description: "Storage (Filesystem) API.\n\nUse this section to:\n- Create, update and delete project filesystems\n- List filesystems within a project\n- Retrieve filesystem details and access credentials\n\nCommon fields:\n- project_id scopes all operations\n- id identifies a filesystem\n\nNotes:\n- total_capacity is specified in GB\n- state reflects lifecycle (PROVISIONING/READY/UPDATING/ERROR/DELETING)\n\nPagination:\n- List endpoints use limit and offset"
+  };
+  rpc CreateFilesystem(CreateFilesystemRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      post: "/projects/{project_id}/storage/fs"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Create a filesystem";
+      description: "Creates a filesystem and initiates async provisioning.";
+      tags: "Storage";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict (resource already exists or incompatible state)" };
+      }
+      responses: {
+        key: "429"; value: { description: "Quota exceeded — tenant would exceed one or more quota limits. Response details carry dimension/limit/used/reserved/requested for the first breached dimension and a full breaches array." };
+      }
+    };
+  }
+
+  rpc GetFilesystem(GetFilesystemRequest) returns (FilesystemResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/storage/fs/{filesystem_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get a filesystem by ID";
+      description: "Retrieves a specific filesystem by its unique identifier. The response includes the full resource state, pending operations, capacity, and optional access credentials.";
+      tags: "Storage";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.FilesystemResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+      responses: {
+        key: "404"; value: { description: "Filesystem not found" };
+      }
+    };
+  }
+
+  rpc ListFilesystems(ListFilesystemsRequest) returns (ListFilesystemsResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/storage/fs"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List all filesystems";
+      tags: "Storage";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListFilesystemsResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+    };
+  }
+
+  rpc UpdateFilesystem(UpdateFilesystemRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      put: "/projects/{project_id}/storage/fs/{filesystem_id}"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Update a filesystem";
+      description: "Updates a filesystem and initiates async reconciliation.";
+      tags: "Storage";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Filesystem not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict (resource already exists or incompatible state)" };
+      }
+    };
+  }
+
+  rpc DeleteFilesystem(DeleteFilesystemRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      delete: "/projects/{project_id}/storage/fs/{filesystem_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Delete a filesystem";
+      description: "Initiates async filesystem deletion.";
+      tags: "Storage";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Filesystem not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict (resource already exists or incompatible state)" };
+      }
+    };
+  }
+
+  rpc ListFilesystemsWithResources(ListFilesystemsWithResourcesRequest) returns (ListFilesystemsWithResourcesResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/storage/fs/with-resources"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List filesystems with linked resources";
+      description: "Returns all filesystems in a project, each paired with the VMs (and future BMs) that are currently using it.";
+      tags: "Storage";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListFilesystemsWithResourcesResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+    };
+  }
+
+  rpc GetStorageStatus(GetStorageStatusRequest) returns (StorageStatusResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/storage/fs/status"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get tenant storage capacity status (live)";
+      tags: "Storage";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.StorageStatusResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+    };
+  }
+}
+
+
+message SizeUnitEnum {
+  enum SizeUnit {
+    SIZE_UNIT_UNSPECIFIED = 0;
+    GiB = 1;
+    TiB = 2;
+  }
+}
+
+message FilesystemCapacity {
+  // int32, not int64, because proto3 JSON serializes int64 as a quoted
+  // string — which breaks typed clients (Python requests, Java SDK,
+  // TypeScript). Capacity is paired with size_unit (GiB | TiB), so
+  // max realistic value is millions of TiB (~zettabytes), comfortably
+  // within int32. Companion to expires_in fix in user_management.proto.
+  int32 size = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Capacity size value. Minimum: 1.",
+    type: INTEGER, format: "int32", minimum: 1
+  }];
+  SizeUnitEnum.SizeUnit size_unit = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Capacity unit: GiB or TiB"
+  }];
+}
+
+message Filesystem {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["id", "tenant_id", "project_id", "name", "state", "capacity", "created_at", "updated_at"] }
+  };
+  string id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Filesystem resource ID (format: filesystem.ULID)"}];
+  string tenant_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant resource ID (format: tenant.ULID)"}];
+  string project_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string name = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Filesystem name"}];
+  FilesystemStateEnum.FilesystemState state = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Current lifecycle state"}];
+  // Deprecated: use capacity instead.
+  int64 total_capacity_gb = 7 [deprecated = true, (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Deprecated: Total allocated capacity in GB. Use capacity instead.", type: INTEGER, format: "int64"}];
+  bool is_encrypted = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Whether the filesystem is encrypted"}];
+  google.protobuf.Timestamp created_at = 9 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Creation timestamp"}];
+  google.protobuf.Timestamp updated_at = 10 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Last update timestamp"}];
+  FilesystemCapacity capacity = 11 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Structured filesystem capacity"}];
+}
+
+message FilesystemStateEnum{
+  enum FilesystemState {
+    UNSPECIFIED = 0;
+    PROVISIONING = 1; // Filesystem is being created
+    READY = 2; // Filesystem is operational
+    UPDATING = 3; // Filesystem configuration is being updated
+    ERROR = 4; // Provider error during reconciliation
+    DELETING = 5; // Filesystem deletion in progress
+  }
+}
+
+message CreateFilesystemRequest {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["name"] }
+  };
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string name = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Filesystem name. Allowed characters: alphanumeric, hyphens, underscores. Max length: 150."
+    max_length: 150
+    pattern: "^[a-zA-Z0-9_-]+$"
+  }];
+  // Deprecated: use capacity instead. If capacity is provided, this field is ignored.
+  int64 total_capacity_gb = 3 [deprecated = true, (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Deprecated: Total capacity in gigabytes (GB). Use capacity instead.", type: INTEGER, format: "int64",
+    minimum: 1
+    example: "10"
+  }];
+  // Structured capacity. If not provided, total_capacity_gb is used as {size: total_capacity_gb, unit: "GiB"}.
+  FilesystemCapacity capacity = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Filesystem capacity. Either this or total_capacity_gb must be provided."
+  }];
+}
+
+message GetFilesystemRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string filesystem_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Filesystem resource ID (format: filesystem.ULID)"}];
+}
+
+message ListFilesystemsRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  int32 page_size = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maximum number of items to return (default: 20, max: 100)", minimum: 1, maximum: 100, default: "20"}];
+  string page_token = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for fetching the next page of results"}];
+}
+
+message ListFilesystemsResponse {
+  repeated Filesystem items = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "List of filesystems"}];
+  string next_page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for the next page, empty if no more results"}];
+}
+
+message UpdateFilesystemRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string filesystem_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Filesystem resource ID (format: filesystem.ULID)"}];
+  // Renaming is not supported: pass the current name or leave empty. A
+  // different value is rejected with InvalidArgument.
+  string name = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Filesystem name. Renaming is not supported — pass the current name or omit. Allowed characters: alphanumeric, hyphens, underscores. Max length: 150."
+    max_length: 150
+    pattern: "^[a-zA-Z0-9_-]+$"
+  }];
+  // Deprecated: use capacity instead.
+  int64 total_capacity = 4 [deprecated = true];
+  // Structured capacity. If not provided, total_capacity is used as {size: total_capacity, unit: "GiB"}.
+  FilesystemCapacity capacity = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Filesystem capacity. Either this or total_capacity must be provided."
+  }];
+}
+
+message DeleteFilesystemRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string filesystem_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Filesystem resource ID (format: filesystem.ULID)"}];
+}
+
+message FilesystemResponse {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["filesystem"] }
+  };
+  Filesystem filesystem = 1;
+  string auth_credentials_base64 = 2;
+  string storage_endpoint = 3;
+}
+
+
+message GetStorageStatusRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+}
+
+message StorageStatusResponse {
+  // int32 (not int64) so JSON emits as a number, not a quoted string.
+  // GB-typed; int32 max = ~2 EB. See FilesystemCapacity.size for the
+  // full rationale.
+  int32 total_quota_gb = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Total storage quota granted to the organization in gigabytes (GB)", type: INTEGER, format: "int32"
+  }];
+  int32 allocated_gb = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Storage already allocated to all filesystems in this organization in gigabytes (GB)", type: INTEGER, format: "int32"
+  }];
+}
+
+message FilesystemLinkedResource {
+  string id         = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Resource ID"}];
+  string name       = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Resource name"}];
+  string type       = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Resource type: vm or bm"}];
+  string state      = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Current lifecycle state"}];
+  string public_ip  = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Public IP address (empty if not assigned)"}];
+  string private_ip = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Private IP address (empty if not assigned)"}];
+  google.protobuf.Timestamp created_at = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Resource creation timestamp"}];
+  string mount_path = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Mount path of this filesystem inside the resource (with /mnt prefix)"}];
+}
+
+message FilesystemWithResources {
+  Filesystem filesystem                    = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Filesystem details"}];
+  repeated FilesystemLinkedResource resources = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Resources linked to this filesystem"}];
+}
+
+message ListFilesystemsWithResourcesRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+}
+
+message ListFilesystemsWithResourcesResponse {
+  repeated FilesystemWithResources items = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "List of filesystems with their linked resources"}];
+}

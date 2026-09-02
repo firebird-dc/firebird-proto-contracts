@@ -1,0 +1,719 @@
+syntax = "proto3";
+
+package firebird.api.v1;
+
+option go_package = "github.com/firebird-dc/firebird-proto-contracts/gen/go;v1";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+import "common.proto";
+import "operation.proto";
+
+
+// BMService provides client-facing operations for managing bare-metal servers
+// Internal fields (BMC credentials, MAC address) are hidden from clients
+service BMService {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
+    name: "Bare Metal"
+    description: "Bare-metal server lifecycle operations.\n\nIncludes:\n- List and get bare-metal servers\n- Provision operations\n- Power on/off, reboot\n- Attach / detach bare-metal servers to subnets\n\nAll endpoints require a Bearer token (Authorization header)."
+  };
+  // GetBM retrieves a bare-metal server including lifecycle state, power state, spec, pending operations, and tags
+  rpc GetBM(GetBMRequest) returns (BMResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/compute/bms/{bm_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get a bare-metal server by ID";
+      description: "Retrieves a specific bare-metal server by its unique identifier. The response includes the full resource state (lifecycle, power), spec, pending operations, and tags.";
+      tags: "Bare Metal";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.BMResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+      responses: {
+        key: "404"; value: { description: "Bare-metal server not found" };
+      }
+    };
+  }
+  
+  // ListBMs lists all bare-metal servers.
+  rpc ListBMs(ListBMsRequest) returns (ListBMsResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/compute/bms"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List bare-metal servers in a project";
+      description: "List all bare-metal servers for the specified project";
+      tags: "Bare Metal";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListBMsResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+    };
+  }
+  
+  // ProvisionBM provisions an existing bare-metal server
+  rpc ProvisionBM(ProvisionBMRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      post: "/projects/{project_id}/compute/bms/{bm_id}/provision"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Provision a bare-metal server";
+      description: "Provisions a bare-metal server and creates an async task for the provisioning controller.";
+      tags: "Bare Metal";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Bare-metal server not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict (server in incompatible state for provisioning)" };
+      }
+    };
+  }
+
+  // PowerOnBM powers on a bare-metal server
+  rpc PowerOnBM(PowerControlBMRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      post: "/projects/{project_id}/compute/bms/{bm_id}/power-on"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Power on a bare-metal server";
+      description: "Powers on a bare-metal server and creates an async task for the provisioning controller.";
+      tags: "Bare Metal";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Bare-metal server not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict (server in incompatible state for power on)" };
+      }
+    };
+  }
+
+  // PowerOffBM powers off a bare-metal server
+  rpc PowerOffBM(PowerControlBMRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      post: "/projects/{project_id}/compute/bms/{bm_id}/power-off"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Power off a bare-metal server";
+      description: "Powers off a bare-metal server and creates an async task for the provisioning controller.";
+      tags: "Bare Metal";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Bare-metal server not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict (server in incompatible state for power off)" };
+      }
+    };
+  }
+
+  // RebootBM reboots a bare-metal server
+  rpc RebootBM(PowerControlBMRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      post: "/projects/{project_id}/compute/bms/{bm_id}/reboot"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Reboot a bare-metal server";
+      description: "Reboots a bare-metal server and creates an async task for the provisioning controller.";
+      tags: "Bare Metal";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Bare-metal server not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict (server in incompatible state for reboot)" };
+      }
+    };
+  }
+
+  // AttachBMToSubnet attaches a bare-metal server to a subnet.
+  // project_id and bm_id are taken from the path; subnet_id is in the
+  // JSON body. (Previously this was body: "subnet_id" — a bare-string
+  // body — but body: "*" is consistent with every other Create-style
+  // RPC and makes the request shape extensible. Migrating callers had
+  // to switch from `"subnet.01..."` to `{"subnet_id": "subnet.01..."}`.)
+  rpc AttachBMToSubnet(AttachBMToSubnetRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      post: "/projects/{project_id}/compute/bms/{bm_id}/attach-subnet"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Attach bare-metal server to subnet";
+      description: "Attaches a bare-metal server to a subnet and creates an async task for the controller.";
+      tags: "Bare Metal";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Bare-metal server or subnet not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict (server already attached to a subnet)" };
+      }
+    };
+  }
+
+  // DetachBMFromSubnet detaches a bare-metal server from its subnet
+  // project_id and bm_id are taken from the path; no request body.
+  rpc DetachBMFromSubnet(DetachBMFromSubnetRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      post: "/projects/{project_id}/compute/bms/{bm_id}/detach-subnet"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Detach bare-metal server from subnet";
+      description: "Detaches a bare-metal server from its subnet and creates an async task for the controller.";
+      tags: "Bare Metal";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Bare-metal server not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict (server not attached to any subnet)" };
+      }
+    };
+  }
+
+  // ListTenantBMs lists all bare-metal servers in the tenant (no project filter)
+  rpc ListTenantBMs(ListTenantBMsRequest) returns (ListBMsResponse) {
+    option (google.api.http) = {
+      get: "/compute/bms"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List all bare-metal servers";
+      description: "Lists all tenant-level bare-metal resource pool.";
+      tags: "Bare Metal";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListBMsResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+    };
+  }
+
+  // AttachBMToProject attaches a bare-metal server to a project
+  rpc AttachBMToProject(AttachBMToProjectRequest) returns (BMResponse) {
+    option (google.api.http) = {
+      post: "/projects/{project_id}/compute/bms/{bm_id}/attach"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Attach bare-metal server to project";
+      description: "Attaches a bare-metal server to a project. The BM must not already be attached to a project.";
+      tags: "Bare Metal";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.BMResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Bare-metal server or project not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict (server already attached to a project)" };
+      }
+    };
+  }
+
+  // DetachBMFromProject detaches a bare-metal server from its project
+  rpc DetachBMFromProject(DetachBMFromProjectRequest) returns (BMResponse) {
+    option (google.api.http) = {
+      post: "/projects/{project_id}/compute/bms/{bm_id}/detach"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Detach bare-metal server from project";
+      description: "Detaches a bare-metal server from its project. Fails if the BM has attached resources (subnet).";
+      tags: "Bare Metal";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.BMResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Bare-metal server not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict (server has attached resources)" };
+      }
+    };
+  }
+
+  // DeprovisionBM removes the OS from a bare-metal server and returns it to the available state
+  rpc DeprovisionBM(DeprovisionBMRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      post: "/projects/{project_id}/compute/bms/{bm_id}/deprovision"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Deprovision a bare-metal server";
+      description: "Removes the OS from a bare-metal server and returns it to the available state for re-provisioning.";
+      tags: "Bare Metal";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Bare-metal server not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict (server in incompatible state for deprovisioning)" };
+      }
+    };
+  }
+  
+}
+
+// LifecycleState represents the lifecycle state of a resource (BM or VPC)
+message BM {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["id", "tenant_id", "name", "state", "power_state", "created_at", "updated_at"] }
+  };
+  string id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Bare-metal server resource ID (format: bm.ULID)"}];
+  string tenant_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant resource ID (format: tenant.ULID)"}];
+  string project_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string name = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Human-readable server name"}];
+  string mac_address = 13 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "MAC address in format XX:XX:XX:XX:XX:XX"}];
+  string subnet_id = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Subnet resource ID if attached (empty if not attached, format: subnet.ULID)"}];
+
+  // Spec contains user-specified configuration (desired state)
+  BMSpec spec = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User-specified desired configuration"}];
+
+  // Status contains observed state from the system
+  BMLifecycleStatus.LifecycleState state = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Current lifecycle state"}];
+  // Power state
+  BMPowerStatus.PowerState power_state = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Current power state (ON or OFF)"}];
+  // Tags
+  map<string, string> tags = 10 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Key-value metadata tags"}];
+
+  // Timestamps
+  google.protobuf.Timestamp created_at = 11 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Creation timestamp"}];
+  google.protobuf.Timestamp updated_at = 12 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Last update timestamp"}];
+
+  // Machine type (hardware profile)
+  string machine_type_id = 14 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Machine type resource ID (format: machine-type.ULID)"}];
+
+  // Network
+  string ip_address = 15 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Primary IPv4 address assigned to the server (empty if not yet discovered)"}];
+
+  // InfiniBand partition memberships. Populated only when the InfiniBand
+  // feature is enabled on the deployment; always empty otherwise.
+  repeated BMIBPartitionMembership ib_partitions = 16 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "InfiniBand partition memberships confirmed for this server (empty when the feature is disabled)"
+  }];
+}
+
+// BMIBPartitionMembership is the BM-centric readback of one InfiniBand
+// partition membership. fabric_state is what the fabric manager confirmed, and it is the
+// whole of the membership state Firebird owns: host-side IPoIB configuration
+// belongs to the tenant, which manages its own bare-metal hosts.
+message BMIBPartitionMembership {
+  string id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Membership resource ID (format: ib-partition-member.ULID); matches the resource_id of attach/detach operations"}];
+  string ib_partition_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "InfiniBand partition resource ID (format: ib-partition.ULID)"}];
+  string ib_partition_name = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "InfiniBand partition name"}];
+  string pkey = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "InfiniBand partition key, formatted as 0xhhhh"}];
+  reserved 5, 6;
+  reserved "ip_address", "interface_name";
+  string fabric_state = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Fabric-confirmed state: attaching, active, detaching or error"}];
+  reserved 8;
+  reserved "host_state";
+  optional string status_reason = 9 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Stable machine-readable reason when a state is not terminal-healthy"}];
+}
+
+// BMSpec contains user-specified configuration for a bare-metal server
+message BMSpec {
+  string image_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Image resource ID for OS provisioning (empty if not set, format: image.ULID)"}];
+  string user_data_base64 = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Base64-encoded cloud-init/userData content (empty if not set)"}];
+  BMRootDisk root_disk = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Root disk configuration"}];
+}
+
+// BMRootDisk contains root disk configuration
+message BMRootDisk {
+  string wwn = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "World Wide Name (WWN) of the root disk (empty if not set)"}];
+}
+
+
+message BMLifecycleStatus {
+  enum LifecycleState {
+    UNSPECIFIED = 0;
+    PROVISIONING = 1;   // In progress (default when unset)
+    AVAILABLE = 2;      // Hardware ready for OS provisioning.
+    RUNNING = 3;        // Provisioned and powered on
+    DEGRADED = 4;       // Error or failed state
+    STOPPING = 5;      // Desired power off, still powering down
+    STOPPED = 6;       // Provisioned and powered off
+    TERMINATING = 7;       // Deletion in progress
+    DEPROVISIONING = 8;    // OS removal in progress
+    ALLOCATED = 9;         // Tenant ownership recorded; hardware registration has not started
+  }
+  LifecycleState lifecycle_state = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Current lifecycle state derived from provider reconciliation"}];
+  string message = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Human-readable status message"}];
+  google.protobuf.Timestamp last_transition_at = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Timestamp of the last state transition"}];
+}
+
+// BMPowerStatus contains power state information (ON or OFF only)
+message BMPowerStatus {
+  enum PowerState {
+    UNSPECIFIED = 0;
+    ON = 1;  // Server is powered on
+    OFF = 2; // Server is powered off
+  }
+  PowerState power_state = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Current power state (ON or OFF)"}];
+}
+
+message GetBMRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string bm_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Bare-metal server resource ID (format: bm.ULID)"}];
+}
+
+message ListBMsRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  int32 page_size = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maximum number of items to return (default: 20, max: 100)", minimum: 1, maximum: 100, default: "20"}];
+  string page_token = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for fetching the next page of results"}];
+}
+
+message ListBMsResponse {
+  repeated BM items = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "List of bare-metal servers"}];
+  string next_page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for the next page, empty if no more results"}];
+}
+
+message ProvisionBMRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string bm_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Bare-metal server resource ID (format: bm.ULID)"}];
+  string image_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Image resource ID for OS provisioning (format: image.ULID)"}];
+  string user_data_b64 = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Base64-encoded cloud-init/userData content"}];
+  map<string, string> tags = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Optional key-value tags. Keys and values: alphanumeric, hyphens, underscores. Max length: 150 each."
+  }];
+  repeated string ib_partition_ids = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "InfiniBand partitions to attach before OS provisioning (format: ib-partition.ULID)."
+  }];
+}
+
+message PowerControlBMRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string bm_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Bare-metal server resource ID (format: bm.ULID)"}];
+}
+
+message AttachBMToSubnetRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string bm_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Bare-metal server resource ID (format: bm.ULID)"}];
+  string subnet_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Subnet resource ID to attach to (format: subnet.ULID)"}];
+}
+
+message AttachBMToSubnetResponse {
+  BM bm = 1;
+}
+
+message DetachBMFromSubnetRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string bm_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Bare-metal server resource ID (format: bm.ULID)"}];
+}
+
+message BMResponse {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["bm"] }
+  };
+  BM bm = 1;
+}
+
+message UpdateBMOSConfigRequest {
+  string bm_id = 1;
+  string namespace = 2;                    // Optional: Kubernetes namespace (defaults to "default")
+  string credential_name = 3;               // Optional: Name of the Kubernetes Secret storing BMC credentials
+  string image_id = 4;                     // Optional: Image ID for OS provisioning
+  string user_data_b64 = 5; // Optional: Base64-encoded cloud-init/userData content (controller creates secret with name "{machine-name}-userdata")
+  string user_data_secret_namespace = 11;  // Optional: namespace for userData secret (defaults to same namespace as BMH)
+  string root_disk_wwn = 6;                // Optional: WWN of the root disk to install the OS on
+  string network_data_secret = 7;         // Optional: Name of the Secret to store generated network data
+}
+
+message DeprovisionBMRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string bm_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Bare-metal server resource ID (format: bm.ULID)"}];
+  bool force = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Force deprovision: completes all pending operations and bypasses state checks (default: false)"}];
+}
+
+
+ message DerivedPowerStateEnum{
+   enum DerivedPowerState {
+     UNSPECIFIED = 0;
+     OFF = 1;            // Server is powered off (default)
+     ON = 2;             // Server is powered on
+     POWERING_ON = 3;    // Server is transitioning from off to on
+     POWERING_OFF = 4;   // Server is transitioning from on to off
+     REBOOTING = 5;      // Server is rebooting (power cycle in progress)
+   }
+ }
+
+// ListTenantBMsRequest lists all BMs in a tenant (no project filter)
+message ListTenantBMsRequest {
+  int32 page_size = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maximum number of items to return (default: 20, max: 100)", minimum: 1, maximum: 100, default: "20"}];
+  string page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for fetching the next page of results"}];
+}
+
+// AttachBMToProjectRequest attaches a BM to a project
+message AttachBMToProjectRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string bm_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Bare-metal server resource ID (format: bm.ULID)"}];
+}
+
+// DetachBMFromProjectRequest detaches a BM from its project
+message DetachBMFromProjectRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string bm_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Bare-metal server resource ID (format: bm.ULID)"}];
+}

@@ -1,0 +1,253 @@
+syntax = "proto3";
+
+package firebird.api.v1;
+
+option go_package = "github.com/firebird-dc/firebird-proto-contracts/gen/go;v1";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+import "operation.proto";
+
+// Subnet Network ACLs live in their own file and their own service so the whole
+// surface can be excluded from the public OpenAPI spec with a single
+// --exclude-path, and left unregistered on deployments that must not serve it.
+// A proto service cannot be split across files, which is why these RPCs are not
+// methods on VPCService despite sharing its URL space.
+
+// NetworkACLService manages the allow-rule set attached to a subnet.
+service NetworkACLService {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
+    name: "Network ACL"
+    description: "Subnet Network ACL API.\n\nA Network ACL is a named set of allow rules attached to exactly one subnet. It is the only mutable property of a subnet — name, CIDR and gateway are fixed at creation.\n\nNotes:\n- No ACL means all traffic is allowed\n- Adding the first rule in a direction switches that direction to default-deny\n- Rules also filter traffic between workloads inside the same subnet"
+  };
+
+  // GetSubnetACL retrieves the subnet's Network ACL
+  rpc GetSubnetACL(GetSubnetACLRequest) returns (NetworkACLResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/network/vpcs/{vpc_id}/subnets/{subnet_id}/acl"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get a subnet's network ACL"
+      description: "Returns the subnet's Network ACL. A subnet with no ACL returns 200 with network_acl absent — that is the default state and permits all traffic. 404 means the subnet itself was not found."
+      tags: "Network ACL"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.NetworkACLResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (malformed ID)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+      responses: {
+        key: "404"; value: { description: "Subnet not found" };
+      }
+    };
+  }
+
+  // PutSubnetACL replaces the subnet's Network ACL
+  rpc PutSubnetACL(PutSubnetACLRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      put: "/projects/{project_id}/network/vpcs/{vpc_id}/subnets/{subnet_id}/acl"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Create or replace a subnet's network ACL"
+      description: "Sets the subnet's complete rule set and initiates the async push to the network layer. Idempotent upsert: the whole ACL is always submitted, since the network layer rewrites the entire rule set on every change and there is no way to patch one rule in isolation. A single invalid rule rejects the whole request. Note that adding the first rule in a direction switches that direction to default-deny, and that rules also filter traffic between workloads inside the same subnet."
+      tags: "Network ACL"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (bad CIDR, malformed port list, ports on a protocol that has none, unsupported network backend)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Subnet not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Another operation is already in progress for this subnet" };
+      }
+    };
+  }
+
+  // DeleteSubnetACL removes the subnet's Network ACL
+  rpc DeleteSubnetACL(DeleteSubnetACLRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      delete: "/projects/{project_id}/network/vpcs/{vpc_id}/subnets/{subnet_id}/acl"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Delete a subnet's network ACL"
+      description: "Removes the ACL and initiates the async push. The subnet returns to permitting all traffic in both directions."
+      tags: "Network ACL"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (malformed ID, unsupported network backend)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Subnet not found" };
+      }
+      responses: {
+        key: "409"; value: { description: "Another operation is already in progress for this subnet" };
+      }
+    };
+  }}
+
+// NetworkACLSpec is an ACL submitted inline with a subnet create. It carries no
+// ids: the subnet it belongs to is the one being created.
+message NetworkACLSpec {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+  json_schema: { required: ["name", "rules"] }
+  };
+  string name = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+  description: "ACL name. Allowed characters: alphanumeric, hyphens, underscores."
+  max_length: 63
+  pattern: "^[a-zA-Z0-9_-]+$"
+  }];
+  repeated NetworkACLRule rules = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+  description: "Allow rules, in apply order."
+  min_items: 1
+  max_items: 100
+  }];
+}
+
+// NetworkACLRuleDirection is the traffic direction a Network ACL rule applies to.
+message NetworkACLRuleDirectionEnum {
+  enum NetworkACLRuleDirection {
+    UNSPECIFIED = 0;
+    INGRESS = 1; // Traffic entering the subnet
+    EGRESS = 2;  // Traffic leaving the subnet
+  }
+}
+
+// NetworkACLRuleProtocol is the protocol a Network ACL rule matches.
+message NetworkACLRuleProtocolEnum {
+  enum NetworkACLRuleProtocol {
+    UNSPECIFIED = 0;
+    TCP = 1;
+    UDP = 2;
+    ICMP = 3;
+    // ALL matches any IPv4 protocol. It is the only way to permit GRE, ESP
+    // (IPsec) or SCTP — a rule set built from TCP, UDP and ICMP alone leaves
+    // those permanently blocked with no rule the customer can write to allow
+    // them.
+    ALL = 4;
+  }
+}
+
+// NetworkACLRule is one allow rule in a subnet's Network ACL.
+message NetworkACLRule {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["direction", "protocol", "remote_cidr"] }
+  };
+  NetworkACLRuleDirectionEnum.NetworkACLRuleDirection direction = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Traffic direction this rule applies to (INGRESS or EGRESS)"}];
+  NetworkACLRuleProtocolEnum.NetworkACLRuleProtocol protocol = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Protocol to match (TCP, UDP, ICMP or ALL)"}];
+  string remote_cidr = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "The remote end of the flow, as an IPv4 CIDR: the source for INGRESS, the destination for EGRESS. Must be in canonical form — host bits set (e.g. 10.0.0.1/8) is rejected rather than masked off."
+  }];
+  string ports = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Destination ports as a comma-separated list of single ports and inclusive ranges, e.g. \"20, 50-60, 8080\". Empty means all ports. Valid only for TCP and UDP. The response echoes the normalised form (sorted, overlapping ranges merged)."
+  }];
+  string description = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Free-text note, passed through to the network layer. Quotes, backslashes and control characters are rejected."
+    max_length: 255
+  }];
+  // No id: rules are addressed by their position in the array. That position is
+  // already the rule's identity on the network side, where each emitted row is
+  // stamped with its index — a second identifier would only have to be kept in
+  // sync with the first.
+}
+
+// NetworkACL is a named set of allow rules on exactly one subnet.
+//
+// It is a property of the subnet rather than a resource of its own, so it has no
+// id and no state. "Did my change apply?" is answered by the operation returned
+// from PutSubnetACL; "is it applied right now?" by the subnet's own state.
+message NetworkACL {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["subnet_id", "vpc_id", "project_id", "tenant_id", "name", "rules"] }
+  };
+  string subnet_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Subnet this ACL is attached to (format: subnet.ULID)"}];
+  string vpc_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Parent VPC resource ID (format: vpc.ULID)"}];
+  string project_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string tenant_id = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant resource ID (format: tenant.ULID)"}];
+  string name = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Human-readable ACL name"}];
+  repeated NetworkACLRule rules = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Allow rules, in apply order. Position is each rule's identity."}];
+  google.protobuf.Timestamp updated_at = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "When the ACL was last changed"}];
+}
+
+message GetSubnetACLRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string vpc_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "VPC resource ID (format: vpc.ULID)"}];
+  string subnet_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Subnet resource ID (format: subnet.ULID)"}];
+}
+
+message NetworkACLResponse {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["network_acl"] }
+  };
+  NetworkACL network_acl = 1;
+}
+
+message PutSubnetACLRequest {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["name", "rules"] }
+  };
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string vpc_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "VPC resource ID (format: vpc.ULID)"}];
+  string subnet_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Subnet resource ID (format: subnet.ULID)"}];
+  string name = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "ACL name. Allowed characters: alphanumeric, hyphens, underscores."
+    max_length: 63
+    pattern: "^[a-zA-Z0-9_-]+$"
+  }];
+  repeated NetworkACLRule rules = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "The complete rule set, in apply order. Replaces the existing rules outright — there is no per-rule patch, because the network layer rewrites the whole set on every change."
+    min_items: 1
+    max_items: 100
+  }];
+}
+
+message DeleteSubnetACLRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string vpc_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "VPC resource ID (format: vpc.ULID)"}];
+  string subnet_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Subnet resource ID (format: subnet.ULID)"}];
+}

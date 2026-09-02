@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package firebird.api.v1;
+
+option go_package = "github.com/firebird-dc/firebird-proto-contracts/gen/go;v1";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+
+message SerialLog {
+  google.protobuf.Timestamp timestamp = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Log entry timestamp"}];
+  string content = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Serial console log content"}];
+}
+
+message ListSerialLogsRequest {
+  string project_id = 1;
+  string bm_id = 2;
+  google.protobuf.Timestamp from = 3;
+  google.protobuf.Timestamp to = 4;
+  int32 page_size = 5;      // Default: 100, Max: 1000
+  string page_token = 6;    // Cursor for pagination
+}
+
+message ListSerialLogsResponse {
+  repeated SerialLog logs = 1;
+  string next_page_token = 2;
+  int32 total_count = 3;    // Approximate total (ES estimate)
+}
+
+service SerialLogsService {
+  rpc ListSerialLogs(ListSerialLogsRequest) returns (ListSerialLogsResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/compute/bms/{bm_id}/serial-logs"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List serial logs for a bare-metal server"
+      description: "Retrieves serial console logs for a specific BM within a time range"
+      tags: "Serial Logs"
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        }
+      }
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListSerialLogsResponse" }
+          }
+        };
+      }
+    };
+  }
+}

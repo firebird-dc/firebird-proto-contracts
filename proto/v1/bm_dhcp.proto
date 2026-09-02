@@ -1,0 +1,269 @@
+syntax = "proto3";
+
+package firebird.api.v1;
+
+option go_package = "github.com/firebird-dc/firebird-proto-contracts/gen/go;v1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+import "operation.proto";
+
+// BMDhcpService manages static DHCP reservations for bare-metal servers and
+// exposes per-subnet DHCP status.
+service BMDhcpService {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
+    name: "Network"
+  };
+
+  // CreateDhcpReservation reserves a static IP for a bare-metal server and
+  // schedules a follow-on reboot so the machine picks up its new lease.
+  // Returns an Operation; poll GET /operations/{id} until terminal.
+  rpc CreateDhcpReservation(CreateDhcpReservationRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      post: "/projects/{project_id}/network/vpcs/{vpc_id}/subnets/{subnet_id}/dhcp/reservations"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Create a static DHCP reservation";
+      description: "Reserves a static IP address for a bare-metal server within the given subnet and schedules a reboot so the machine picks up its new lease. The operation completes when both the reservation is provisioned and the BM has rebooted.";
+      tags: "Network";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "Accepted — async operation created"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: { key: "400"; value: { description: "Invalid request (missing or malformed fields, IP not in subnet CIDR, etc.)" }; }
+      responses: { key: "401"; value: { description: "Missing or invalid authentication token" }; }
+      responses: { key: "403"; value: { description: "Insufficient permissions" }; }
+      responses: { key: "404"; value: { description: "Project, VPC, subnet, or bare-metal server not found" }; }
+      responses: { key: "409"; value: { description: "IP already in use or BM already has a reservation" }; }
+    };
+  }
+
+  // GetDhcpReservation retrieves a single DHCP reservation by ID.
+  rpc GetDhcpReservation(GetDhcpReservationRequest) returns (GetDhcpReservationResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/network/vpcs/{vpc_id}/subnets/{subnet_id}/dhcp/reservations/{reservation_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get a DHCP reservation by ID";
+      description: "Retrieves a specific DHCP reservation including its current state and any error details.";
+      tags: "Network";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.GetDhcpReservationResponse" }
+          }
+        };
+      }
+      responses: { key: "401"; value: { description: "Missing or invalid authentication token" }; }
+      responses: { key: "403"; value: { description: "Insufficient permissions" }; }
+      responses: { key: "404"; value: { description: "Reservation not found" }; }
+    };
+  }
+
+  // ListDhcpReservations lists all DHCP reservations for a subnet.
+  rpc ListDhcpReservations(ListDhcpReservationsRequest) returns (ListDhcpReservationsResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/network/vpcs/{vpc_id}/subnets/{subnet_id}/dhcp/reservations"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List DHCP reservations in a subnet";
+      description: "Returns all static DHCP reservations for the specified subnet, cursor-paginated.";
+      tags: "Network";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListDhcpReservationsResponse" }
+          }
+        };
+      }
+      responses: { key: "401"; value: { description: "Missing or invalid authentication token" }; }
+      responses: { key: "403"; value: { description: "Insufficient permissions" }; }
+    };
+  }
+
+  // DeleteDhcpReservation removes a static DHCP reservation.
+  // Exactly one of {reservation_id (path), ?ip=, ?bm_id=} must be supplied.
+  // The BM retains its current lease until natural renewal; no reboot is
+  // triggered. Returns an Operation.
+  rpc DeleteDhcpReservation(DeleteDhcpReservationRequest) returns (OperationResponse) {
+    option (google.api.http) = {
+      delete: "/projects/{project_id}/network/vpcs/{vpc_id}/subnets/{subnet_id}/dhcp/reservations"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Delete a DHCP reservation";
+      description: "Removes a static DHCP reservation identified by reservation ID (path), IP address (?ip=), or BM ID (?bm_id=). Exactly one lookup key must be provided. The BM keeps its current lease until natural DHCP renewal.";
+      tags: "Network";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "Accepted — async operation created"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.OperationResponse" }
+          }
+        };
+      }
+      responses: { key: "400"; value: { description: "Zero or more than one lookup key provided" }; }
+      responses: { key: "401"; value: { description: "Missing or invalid authentication token" }; }
+      responses: { key: "403"; value: { description: "Insufficient permissions" }; }
+      responses: { key: "404"; value: { description: "Reservation not found" }; }
+    };
+  }
+
+  // GetDhcpStatus returns computed DHCP status for a subnet: CIDR, gateway,
+  // allocation pools, and usage statistics.
+  rpc GetDhcpStatus(GetDhcpStatusRequest) returns (GetDhcpStatusResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/network/vpcs/{vpc_id}/subnets/{subnet_id}/dhcp/status"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get DHCP status for a subnet";
+      description: "Returns the subnet's CIDR, gateway, computed allocation pools, and statistics (total IPs, static reservations, available IPs). All values are derived at read time — no projection table.";
+      tags: "Network";
+      security: {
+        security_requirement: {
+          key: "BearerAuth";
+          value: {};
+        };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.GetDhcpStatusResponse" }
+          }
+        };
+      }
+      responses: { key: "401"; value: { description: "Missing or invalid authentication token" }; }
+      responses: { key: "403"; value: { description: "Insufficient permissions" }; }
+      responses: { key: "404"; value: { description: "Subnet not found" }; }
+    };
+  }
+}
+
+// ===== Reservation messages =====
+
+message DhcpReservation {
+  string id = 1;
+  string bm_id = 2;
+  string ip_address = 3;
+  ReservationState state = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+enum ReservationState {
+  RESERVATION_STATE_UNSPECIFIED = 0;
+  RESERVATION_STATE_PROVISIONING = 1;
+  RESERVATION_STATE_READY = 2;
+  RESERVATION_STATE_ERROR = 3;
+  RESERVATION_STATE_DELETING = 4;
+}
+
+message CreateDhcpReservationRequest {
+  string project_id = 1;
+  string vpc_id = 2;
+  string subnet_id = 3;
+  string bm_id = 4;
+  string ip_address = 5;
+}
+
+message GetDhcpReservationRequest {
+  string project_id = 1;
+  string vpc_id = 2;
+  string subnet_id = 3;
+  string reservation_id = 4;
+}
+
+// Response envelope: {"reservation": {...}}
+message GetDhcpReservationResponse {
+  DhcpReservation reservation = 1;
+}
+
+message ListDhcpReservationsRequest {
+  string project_id = 1;
+  string vpc_id = 2;
+  string subnet_id = 3;
+  int32  page_size = 4;
+  string page_token = 5;
+}
+
+// Response envelope: {"reservations": [...], "next_page_token": "..."}
+message ListDhcpReservationsResponse {
+  repeated DhcpReservation reservations = 1;
+  string next_page_token = 2;
+}
+
+message DeleteDhcpReservationRequest {
+  string project_id = 1;
+  string vpc_id = 2;
+  string subnet_id = 3;
+
+  // Exactly one of the following three fields identifies the reservation.
+  string reservation_id = 4; // from path: /reservations/{reservation_id}
+  string ip_address = 5;     // from query: ?ip=
+  string bm_id = 6;          // from query: ?bm_id=
+}
+
+// ===== Status messages =====
+
+message AllocationPool {
+  string start = 1;
+  string end = 2;
+}
+
+message DhcpStats {
+  int64 total_dhcp_ips = 1;
+  int64 static_reservations = 2;
+  int64 available_ips = 3;
+}
+
+message DhcpStatus {
+  repeated AllocationPool allocation_pools = 1;
+  DhcpStats stats = 2;
+}
+
+message GetDhcpStatusRequest {
+  string project_id = 1;
+  string vpc_id = 2;
+  string subnet_id = 3;
+}
+
+// Response envelope: {"dhcp_status": {...}}
+message GetDhcpStatusResponse {
+  DhcpStatus dhcp_status = 1;
+}

@@ -1,0 +1,1605 @@
+syntax = "proto3";
+
+package firebird.api.v1;
+
+option go_package = "github.com/firebird-dc/firebird-proto-contracts/gen/go;v1";
+
+import "google/api/annotations.proto";
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+service UserManagementService {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
+    name: "IAM"
+    description: "Identity and Access Management API.\n\nKey rules:\n- Tenant is implicit from JWT.\n- Creating a user or service account grants NO roles by default.\n- Roles are granted only via explicit role-binding endpoints.\n- Tenant ADMIN can manage all users, service accounts, and role bindings in a tenant.\n- Project ADMIN can manage project-level role bindings within that project."
+  };
+
+  // ---------- TOKEN ----------
+  // Intentionally public (security: {}) — no BearerAuth. Clients call this to obtain a token.
+
+  rpc Token(TokenRequest) returns (TokenResponse) {
+    option (google.api.http) = {
+      post: "/auth/token"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get authentication token"
+      description: "Obtain an access token using one of the supported grant types:\n\n**password** — for users. Provide `email` and `password`.\n\n**client_credentials** — for service accounts. Provide `client_id` and `client_secret`.\n\n**refresh_token** — rotate an expiring access token. Provide the `refresh_token` returned by a previous Token call. \n\nReturns a JWT access token that must be included in all subsequent requests as `Authorization: Bearer <token>`."
+      operation_id: "GetToken"
+      tags: "IAM"
+      security: {};
+      responses: {
+        key: "200";
+        value: {
+          description: "Successful authentication"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.TokenResponse" }
+          }
+        };
+      },
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      },
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+    };
+  }
+
+  // ---------- USERS ----------
+  // NOTE: CRUD RPCs (GetUser, ListUsers, etc.) MUST be defined before the /users/me
+  // RPCs (GetUserInfo, ChangePassword). grpc-gateway's ServeMux.Handle() prepends
+  // handlers, so later-registered patterns are checked first. By defining GetUser
+  // (/users/{user_id}) before GetUserInfo (/users/me), the literal "/users/me" pattern
+  // ends up ahead of the wildcard in the match list, preventing the wildcard from
+  // swallowing the literal path.
+
+  rpc CreateUser(CreateUserRequest) returns (CreateUserResponse) {
+    option (google.api.http) = {
+      post: "/users"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Create a user"
+      description: "Creates a user. Requires tenant ADMIN.\n\nNo roles are granted at creation — grant roles explicitly after creation.\n\nA cryptographically random temporary password is generated and returned once in `initial_password`. The user must change it via `POST /users/me/password`."
+      operation_id: "CreateUser"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "201";
+        value: {
+          description: "Created"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.CreateUserResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict (resource already exists or incompatible state)" };
+      }
+    };
+  }
+
+  rpc GetUser(GetUserRequest) returns (UserResponse) {
+    option (google.api.http) = {
+      get: "/users/{user_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get user by ID"
+      description: "Returns a single user by ID. Requires tenant VIEWER or higher."
+      operation_id: "GetUser"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.UserResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+      responses: {
+        key: "404"; value: { description: "User not found" };
+      }
+    };
+  }
+
+  rpc ListUsers(ListUsersRequest) returns (ListUsersResponse) {
+    option (google.api.http) = {
+      get: "/users"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List users"
+      description: "Returns users in the caller's tenant. Requires tenant VIEWER or higher. Supports `limit` (default 20, max 100) and `offset` for pagination."
+      operation_id: "ListUsers"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListUsersResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+    };
+  }
+
+  rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse) {
+    option (google.api.http) = {
+      delete: "/users/{user_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Delete a user"
+      description: "Permanently removes the user from the system. All tenant and project role bindings are cascade-deleted. Requires tenant ADMIN."
+      operation_id: "DeleteUser"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.DeleteUserResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "User not found" };
+      }
+    };
+  }
+
+  // ---------- INVITATIONS ----------
+
+  rpc InviteUser(InviteUserRequest) returns (InviteUserResponse) {
+    option (google.api.http) = {
+      post: "/users/invitations"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Invite a user to the tenant"
+      description: "Creates a pending invitation for an email to join the tenant. The invitee is always granted tenant ADMIN on accept — the role is not caller-selectable (the request's `role` field is reserved and ignored). Tenant membership and the ADMIN role are granted when the invitee accepts. Requires tenant ADMIN.\n\nFor organization tenants the invitee's email domain MUST be one of the tenant's VERIFIED domains, otherwise the request is rejected with 403.\n\nIdempotency: a second invitation for an email that already has a pending invitation in this tenant returns 409."
+      operation_id: "InviteUser"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "201";
+        value: {
+          description: "Created"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.InviteUserResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions, unverified tenant, or email domain not verified for this organization" };
+      }
+      responses: {
+        key: "409"; value: { description: "A pending invitation for this email already exists" };
+      }
+    };
+  }
+
+  // ListInvitations is defined after GetUser (/users/{user_id}) so grpc-gateway's
+  // prepend ordering gives the literal GET /users/invitations higher match
+  // priority than the GET /users/{user_id} wildcard.
+  rpc ListInvitations(ListInvitationsRequest) returns (ListInvitationsResponse) {
+    option (google.api.http) = {
+      get: "/users/invitations"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List pending invitations"
+      description: "Returns the tenant's pending invitations (newest first), each with a derived status (PENDING or EXPIRED) and expiry. Accepted and revoked invitations are deleted and do not appear. Requires tenant VIEWER or higher."
+      operation_id: "ListInvitations"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListInvitationsResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+    };
+  }
+
+  rpc ResendInvitation(ResendInvitationRequest) returns (ResendInvitationResponse) {
+    option (google.api.http) = {
+      post: "/users/invitations/{invitation_id}/resend"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Resend an invitation"
+      description: "Resets the invitation's expiry to a fresh 7-day window. Requires tenant ADMIN."
+      operation_id: "ResendInvitation"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ResendInvitationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Invitation not found" };
+      }
+    };
+  }
+
+  rpc RevokeInvitation(RevokeInvitationRequest) returns (RevokeInvitationResponse) {
+    option (google.api.http) = {
+      delete: "/users/invitations/{invitation_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Revoke an invitation"
+      description: "Revokes a pending invitation by deleting the invitation record. Requires tenant ADMIN."
+      operation_id: "RevokeInvitation"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.RevokeInvitationResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Invitation not found" };
+      }
+    };
+  }
+
+  rpc ListTenantMembers(ListTenantMembersRequest) returns (ListTenantMembersResponse) {
+    option (google.api.http) = {
+      get: "/tenant/members"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List tenant members"
+      description: "Returns the users who are members of the caller's tenant (via tenant membership), each with their tenant-level roles. Requires tenant VIEWER or higher."
+      operation_id: "ListTenantMembers"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListTenantMembersResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+    };
+  }
+
+  rpc ListTenantDomains(ListTenantDomainsRequest) returns (ListTenantDomainsResponse) {
+    option (google.api.http) = {
+      get: "/tenant/domains"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List the tenant's domains"
+      description: "Returns the caller tenant's email domains with their verification status. A VERIFIED domain lets the tenant invite users whose email is on that domain; the invite dialog shows the verified ones. Requires tenant VIEWER or higher."
+      operation_id: "ListTenantDomains"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListTenantDomainsResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+    };
+  }
+
+  // ListRoles returns the roles available in the caller's tenant: the
+  // predefined (global) roles plus any the tenant has defined. Clients use it
+  // to populate role pickers when inviting a user or assigning access.
+  rpc ListRoles(ListRolesRequest) returns (ListRolesResponse) {
+    option (google.api.http) = {
+      get: "/roles"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List roles available to the tenant"
+      description: "Returns the roles the caller's tenant can assign: the predefined roles (ADMIN, EDITOR, VIEWER) plus any tenant-defined roles. Each entry carries the role's stable UPPERCASE name/slug, its human-readable display name, and whether it is predefined. Names returned here are the values accepted in InviteUser role assignments; the access endpoints currently accept only the predefined roles. Requires tenant VIEWER or higher."
+      operation_id: "ListRoles"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListRolesResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+    };
+  }
+
+  rpc RemoveTenantMember(RemoveTenantMemberRequest) returns (RemoveTenantMemberResponse) {
+    option (google.api.http) = {
+      delete: "/tenant/members/{user_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Remove a member from the tenant"
+      description: "Removes a user's membership and all tenant- and project-level role bindings within the caller's tenant, and removes them from the tenant's identity-provider organization (best-effort mirror). The user account itself is NOT deleted (use DeleteUser for that), and any other tenants the user belongs to are unaffected. Requires tenant ADMIN.\n\nA caller cannot remove themselves."
+      operation_id: "RemoveTenantMember"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.RemoveTenantMemberResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing user_id, or removing yourself)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+      responses: {
+        key: "404"; value: { description: "User is not a member of the tenant" };
+      }
+    };
+  }
+
+  rpc GetInvitationInfo(GetInvitationInfoRequest) returns (GetInvitationInfoResponse) {
+    option (google.api.http) = {
+      get: "/invitations/info"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get invitation context (invitee)"
+      description: "Returns the pending invitation addressed to the authenticated caller for the organization in the invite link, so the accept page can show the tenant and role. The invitation must be addressed to the caller's own email. Requires a valid token; the caller need not belong to any tenant yet."
+      operation_id: "GetInvitationInfo"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: { description: "OK"; schema: { json_schema: { ref: ".firebird.api.v1.GetInvitationInfoResponse" } } };
+      }
+      responses: { key: "401"; value: { description: "Missing or invalid authentication token" }; }
+      responses: { key: "404"; value: { description: "No matching invitation" }; }
+    };
+  }
+
+  rpc AcceptInvitation(AcceptInvitationRequest) returns (AcceptInvitationResponse) {
+    option (google.api.http) = {
+      post: "/invitations/accept"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Accept an invitation (invitee)"
+      description: "Joins the authenticated caller to the inviting tenant: writes tenant membership and the invitation's role, then consumes the invitation. The invitation must be addressed to the caller's own email and not expired. Requires a valid token; the caller need not belong to any tenant yet."
+      operation_id: "AcceptInvitation"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: { description: "OK"; schema: { json_schema: { ref: ".firebird.api.v1.AcceptInvitationResponse" } } };
+      }
+      responses: { key: "400"; value: { description: "Invalid request or expired invitation" }; }
+      responses: { key: "401"; value: { description: "Missing or invalid authentication token" }; }
+      responses: { key: "404"; value: { description: "No matching invitation" }; }
+    };
+  }
+
+  // ---------- SELF ----------
+  // Defined after /users/{user_id} so grpc-gateway's prepend ordering gives
+  // the literal /users/me pattern higher match priority than the wildcard.
+
+  rpc GetUserInfo(GetUserInfoRequest) returns (GetUserInfoResponse) {
+    option (google.api.http) = {
+      get: "/users/me"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get current user info"
+      description: "Returns the authenticated caller's identity (user ID, email, display name), their tenant-level role bindings."
+      operation_id: "GetUserInfo"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.GetUserInfoResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+    };
+  }
+
+  rpc GetUserProfile(GetUserProfileRequest) returns (GetUserProfileResponse) {
+    option (google.api.http) = {
+      get: "/users/me/profile"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get current user profile"
+      description: "Returns the authenticated caller's profile: user ID, full name, email address, and phone number. The caller need not belong to any tenant yet. Service accounts have no user profile and receive 404."
+      operation_id: "GetUserProfile"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.GetUserProfileResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "404"; value: { description: "No user profile for this subject (e.g. service account)" };
+      }
+    };
+  }
+
+  // ---------- SERVICE ACCOUNTS ----------
+
+  rpc CreateServiceAccount(CreateServiceAccountRequest) returns (CreateServiceAccountResponse) {
+    option (google.api.http) = {
+      post: "/service-accounts"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Create a service account"
+      description: "Creates a service account in the caller's tenant. Requires tenant ADMIN.\n\nNo roles are granted at creation — grant roles explicitly after creation."
+      operation_id: "CreateServiceAccount"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "201";
+        value: {
+          description: "Created"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.CreateServiceAccountResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "409"; value: { description: "Conflict (resource already exists or incompatible state)" };
+      }
+    };
+  }
+
+  rpc GetServiceAccount(GetServiceAccountRequest) returns (ServiceAccountResponse) {
+    option (google.api.http) = {
+      get: "/service-accounts/{account_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get service account by ID"
+      description: "Returns a single service account by ID. Requires tenant VIEWER or higher."
+      operation_id: "GetServiceAccount"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ServiceAccountResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+      responses: {
+        key: "404"; value: { description: "Service account not found" };
+      }
+    };
+  }
+
+  rpc ListServiceAccounts(ListServiceAccountsRequest) returns (ListServiceAccountsResponse) {
+    option (google.api.http) = {
+      get: "/service-accounts"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List service accounts"
+      description: "Returns service accounts in the caller's tenant. Requires tenant VIEWER or higher. Supports `limit` (default 20, max 100) and `offset` for pagination."
+      operation_id: "ListServiceAccounts"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListServiceAccountsResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+    };
+  }
+
+  rpc DeleteServiceAccount(DeleteServiceAccountRequest) returns (DeleteServiceAccountResponse) {
+    option (google.api.http) = {
+      delete: "/service-accounts/{account_id}"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Delete a service account"
+      description: "Permanently removes the service account from the system. Requires tenant ADMIN."
+      operation_id: "DeleteServiceAccount"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "202";
+        value: {
+          description: "Accepted"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.DeleteServiceAccountResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Service account not found" };
+      }
+    };
+  }
+
+  rpc RotateServiceAccountSecret(RotateServiceAccountSecretRequest) returns (RotateServiceAccountSecretResponse) {
+    option (google.api.http) = {
+      post: "/service-accounts/{account_id}/secret"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Rotate service account secret"
+      description: "Generates a new client secret for the service account, immediately invalidating the previous one. Returns the new `client_secret` once — it will not be retrievable again. Requires tenant ADMIN."
+      operation_id: "RotateServiceAccountSecret"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.RotateServiceAccountSecretResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Service account not found" };
+      }
+    };
+  }
+
+  // ---------- USER TENANT ROLE BINDINGS ----------
+
+  rpc GetUserTenantRoles(GetUserTenantRolesRequest) returns (SubjectTenantRolesResponse) {
+    option (google.api.http) = {
+      get: "/users/{user_id}/tenant-roles"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get tenant-level roles for a user"
+      description: "Returns the list of tenant-level roles currently assigned to the user. Requires tenant VIEWER or higher."
+      operation_id: "GetUserTenantRoles"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.SubjectTenantRolesResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+      responses: {
+        key: "404"; value: { description: "User not found" };
+      }
+    };
+  }
+
+  // SetUserTenantRoles replaces the user's tenant-role set atomically. PUT
+  // semantics: the request body's `roles` array is the desired final state.
+  // Idempotent — PUT with the same set is a no-op. An empty `roles` array
+  // removes all tenant role bindings. The response includes an `etag` that
+  // clients SHOULD use to detect concurrent modification (advisory in v1;
+  // server-side enforcement via If-Match is a planned addition).
+  rpc SetUserTenantRoles(SetUserTenantRolesRequest) returns (SubjectTenantRolesResponse) {
+    option (google.api.http) = {
+      put: "/users/{user_id}/tenant-roles"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Set tenant-level roles for a user (full replace)"
+      description: "Replaces the user's tenant-level role bindings with the provided set. Idempotent. Empty `roles` removes all bindings. Requires tenant ADMIN."
+      operation_id: "SetUserTenantRoles"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.SubjectTenantRolesResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (unknown role or malformed body)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "User not found" };
+      }
+    };
+  }
+
+  // ---------- SERVICE ACCOUNT TENANT ROLE BINDINGS ----------
+
+  rpc GetServiceAccountTenantRoles(GetServiceAccountTenantRolesRequest) returns (SubjectTenantRolesResponse) {
+    option (google.api.http) = {
+      get: "/service-accounts/{account_id}/tenant-roles"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get tenant-level roles for a service account"
+      description: "Returns the list of tenant-level roles currently assigned to the service account. Requires tenant VIEWER or higher."
+      operation_id: "GetServiceAccountTenantRoles"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.SubjectTenantRolesResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+      responses: {
+        key: "404"; value: { description: "Service account not found" };
+      }
+    };
+  }
+
+  // SetServiceAccountTenantRoles replaces the service account's tenant-role
+  // set atomically. Semantics identical to SetUserTenantRoles.
+  rpc SetServiceAccountTenantRoles(SetServiceAccountTenantRolesRequest) returns (SubjectTenantRolesResponse) {
+    option (google.api.http) = {
+      put: "/service-accounts/{account_id}/tenant-roles"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Set tenant-level roles for a service account (full replace)"
+      description: "Replaces the service account's tenant-level role bindings with the provided set. Idempotent. Empty `roles` removes all bindings. Requires tenant ADMIN."
+      operation_id: "SetServiceAccountTenantRoles"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.SubjectTenantRolesResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (unknown role or malformed body)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Service account not found" };
+      }
+    };
+  }
+
+  // ---------- PROJECT ROLE BINDINGS ----------
+
+  rpc ListProjectMembers(ListProjectMembersRequest) returns (ListProjectMembersResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/members"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List project members"
+      description: "Returns all users and service accounts that have at least one project-level role binding on the specified project, along with their roles. Requires any tenant role, or any project role on this project."
+      operation_id: "ListProjectMembers"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListProjectMembersResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (missing or malformed fields)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+    };
+  }
+
+  rpc GetUserProjectRoles(GetUserProjectRolesRequest) returns (SubjectProjectRolesResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/users/{user_id}/roles"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get project-level roles for a user"
+      description: "Returns the user's project-level role bindings on the specified project. Requires any tenant role, or any project role on this project."
+      operation_id: "GetUserProjectRoles"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.SubjectProjectRolesResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+      responses: {
+        key: "404"; value: { description: "Project or user not found" };
+      }
+    };
+  }
+
+  // SetUserProjectRoles replaces the user's project-level role set atomically
+  // on the given project. Idempotent; empty `roles` removes all bindings on
+  // this project. Requires tenant ADMIN or project ADMIN on the target project.
+  rpc SetUserProjectRoles(SetUserProjectRolesRequest) returns (SubjectProjectRolesResponse) {
+    option (google.api.http) = {
+      put: "/projects/{project_id}/users/{user_id}/roles"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Set project-level roles for a user (full replace)"
+      description: "Replaces the user's project-level role bindings on the specified project with the provided set. Idempotent. Empty `roles` removes all bindings. Requires tenant ADMIN or project ADMIN."
+      operation_id: "SetUserProjectRoles"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.SubjectProjectRolesResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (unknown role or malformed body)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Project or user not found" };
+      }
+    };
+  }
+
+  rpc GetServiceAccountProjectRoles(GetServiceAccountProjectRolesRequest) returns (SubjectProjectRolesResponse) {
+    option (google.api.http) = {
+      get: "/projects/{project_id}/service-accounts/{account_id}/roles"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Get project-level roles for a service account"
+      description: "Returns the service account's project-level role bindings on the specified project. Requires any tenant role, or any project role on this project."
+      operation_id: "GetServiceAccountProjectRoles"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.SubjectProjectRolesResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions" };
+      }
+      responses: {
+        key: "404"; value: { description: "Project or service account not found" };
+      }
+    };
+  }
+
+  // SetServiceAccountProjectRoles — symmetric counterpart of SetUserProjectRoles.
+  rpc SetServiceAccountProjectRoles(SetServiceAccountProjectRolesRequest) returns (SubjectProjectRolesResponse) {
+    option (google.api.http) = {
+      put: "/projects/{project_id}/service-accounts/{account_id}/roles"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Set project-level roles for a service account (full replace)"
+      description: "Replaces the service account's project-level role bindings on the specified project with the provided set. Idempotent. Empty `roles` removes all bindings. Requires tenant ADMIN or project ADMIN."
+      operation_id: "SetServiceAccountProjectRoles"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.SubjectProjectRolesResponse" }
+          }
+        };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (unknown role or malformed body)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Project or service account not found" };
+      }
+    };
+  }
+
+  // ---------- ACCESS MANAGEMENT ----------
+
+  // SetUserAccess replaces the user's entire access atomically. Both scopes may
+  // be set together — a subject may hold tenant roles AND project roles. An
+  // empty list clears that scope; an empty request clears all access.
+  rpc SetUserAccess(SetUserAccessRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      put: "/users/{user_id}/access"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Set access for a user (full replace)"
+      description: "Replaces the user's entire access: tenant-scope roles and/or project-scope role assignments. Both scopes may be set together; an empty list clears that scope. Idempotent. Requires tenant ADMIN."
+      operation_id: "SetUserAccess"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200"; value: { description: "Access updated" };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (unknown role, unknown project, or malformed body)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "User not found" };
+      }
+    };
+  }
+
+  // SetServiceAccountAccess — symmetric counterpart of SetUserAccess.
+  rpc SetServiceAccountAccess(SetServiceAccountAccessRequest) returns (google.protobuf.Empty) {
+    option (google.api.http) = {
+      put: "/service-accounts/{service_account_id}/access"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Set access for a service account (full replace)"
+      description: "Replaces the service account's entire access: tenant-scope roles and/or project-scope role assignments. Both scopes may be set together; an empty list clears that scope. Idempotent. Requires tenant ADMIN."
+      operation_id: "SetServiceAccountAccess"
+      tags: "IAM"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; };
+      responses: {
+        key: "200"; value: { description: "Access updated" };
+      }
+      responses: {
+        key: "400"; value: { description: "Invalid request (unknown role, unknown project, or malformed body)" };
+      }
+      responses: {
+        key: "401"; value: { description: "Missing or invalid authentication token" };
+      }
+      responses: {
+        key: "403"; value: { description: "Insufficient permissions or unverified tenant" };
+      }
+      responses: {
+        key: "404"; value: { description: "Service account not found" };
+      }
+    };
+  }
+
+}
+
+// ---------- TOKEN ----------
+
+message TokenRequest {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["grant_type"] }
+  };
+  // "client_credentials" for service accounts, "password" for users, "refresh_token" to rotate tokens.
+  string grant_type = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "OAuth2 grant type. Valid values: password, client_credentials, refresh_token"
+  }];
+  string client_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Service account client ID (required for client_credentials grant)"
+  }];
+  string client_secret = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Service account client secret (required for client_credentials grant)"
+  }];
+  string email = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "User email address (required for password grant)"
+  }];
+  string password = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "User password (required for password grant)"
+  }];
+  string refresh_token = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Refresh token from a previous Token call (required for refresh_token grant)"
+  }];
+}
+
+message TokenResponse {
+  string access_token = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "JWT access token"}];
+  string token_type = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token type (always \"Bearer\")"}];
+  // int32, not int64, because proto3 JSON serializes int64 as a quoted
+  // string (precision-preservation for JS) — which violates OAuth2
+  // RFC 6749 §5.1 ("expires_in" must be a JSON number) and breaks any
+  // typed client decoder that expects a number. Token TTLs (~3600s
+  // typical, max realistic ~1 year) fit comfortably in int32.
+  int32  expires_in = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token lifetime in seconds", type: INTEGER, format: "int32"}];
+  string refresh_token = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Refresh token for obtaining new access tokens"}];
+  string id_token = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "OIDC ID token"}];
+}
+
+// ---------- SELF ----------
+
+message GetUserInfoRequest {}
+
+message GetUserInfoResponse {
+  string                 user_id      = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User resource ID (format: user.ULID)"}];
+  string                 email        = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User email address"}];
+  string                 display_name = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User display name"}];
+  string                 tenant_id    = 4 [deprecated = true, (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Deprecated: use tenants instead. Populated with the user's first (oldest-membership) tenant for backward compatibility."}];
+  repeated RoleEnum.Role tenant_roles = 5 [deprecated = true, (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Deprecated: use roles instead. Tenant-level roles assigned to this user."}];
+  reserved 6; // was: TenantInfo tenant (single active tenant) — replaced by tenants
+  repeated TenantInfo    tenants      = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "All tenants this user is a member of (via invitations or their home tenant). Includes the active tenant reported in tenant_id."}];
+  repeated RoleView      roles        = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Display: the caller's role bindings verbatim, across every tenant they belong to. project_id \"\" = tenant scope."}];
+  repeated AccessEntry   access       = 9 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Gating: effective, fully-expanded permission keys grouped by (tenant_id, project_id). project_id \"\" = tenant scope (covers all projects)."}];
+}
+
+message RoleView {
+  string tenant_id  = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant resource ID (format: tenant.ULID)"}];
+  string project_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID); empty = tenant scope"}];
+  string role         = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Role name: the stable UPPERCASE slug (e.g. ADMIN)"}];
+  string display_name = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Human-readable role label (e.g. Admin)"}];
+}
+
+// RoleDefinition is one role available to a tenant, for role-picker UIs. The
+// name is the value accepted by InviteUser assignments and the access endpoints.
+message RoleDefinition {
+  string name         = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Stable UPPERCASE role name/slug (e.g. ADMIN); the value accepted in role assignments"}];
+  string display_name = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Human-readable role label (e.g. Admin)"}];
+  bool   predefined   = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "True for a built-in global role; false for a tenant-defined role"}];
+}
+
+message ListRolesRequest {}
+
+message ListRolesResponse {
+  repeated RoleDefinition roles = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Roles the tenant can assign, predefined first then tenant-defined, each alphabetical by name"}];
+}
+
+message AccessEntry {
+  string tenant_id           = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant resource ID (format: tenant.ULID)"}];
+  string project_id          = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID); empty = tenant scope (covers all projects)"}];
+  repeated string permissions = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Effective, fully-expanded permission keys (area.resource:action); no wildcards"}];
+}
+
+message TenantInfo {
+  string id                = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant resource ID (format: tenant.ULID)"}];
+  string name              = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant name"}];
+  string tenant_type       = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant type: \"personal\" or \"organization\""}]; // "personal" or "organization"
+  string compliance_status = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Compliance status: \"UNVERIFIED\" or \"VERIFIED\""}]; // "UNVERIFIED" or "VERIFIED"
+  reserved 5;
+  bool   suspended         = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "True when the tenant is soft-suspended for an outstanding balance. While true the API blocks creating new resources and starting stopped VMs; it clears automatically on the next successful payment. The console reads this to show the suspended state and gate create/start actions."}];
+  string company_name             = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Company name (organization tenants only; empty for personal tenants)"}];
+  string tax_id                   = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tax ID / VAT number (organization tenants only; empty when unset)"}];
+  string country                  = 9 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant's registration country as an ISO alpha-3 code — the individual's residency country for personal tenants, the country of incorporation for organization tenants."}];
+  bool   billing_active           = 10 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "True when the tenant has a live way to pay: an active bound card OR an active promotional credit grant (activated, not expired, credit left). False means neither — the console should send the tenant to add a card before creating billable resources."}];
+  string currency                 = 11 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant billing currency (USD | AMD) from the tenant's billing config. Always populated: falls back to USD for a tenant that has no billing config row yet."}];
+}
+
+message GetUserProfileRequest {}
+
+message GetUserProfileResponse {
+  string user_id      = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User resource ID (format: user.ULID)"}];
+  string display_name = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User full name"}];
+  string email        = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User email address"}];
+  string phone_number = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User phone number; empty when unset"}];
+}
+
+// ---------- USERS ----------
+
+message UserResponse {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["id", "tenant_id", "display_name", "email", "created_at", "updated_at"] }
+  };
+  string id           = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User resource ID (format: user.ULID)"}];
+  string tenant_id    = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant resource ID (format: tenant.ULID)"}];
+  string email        = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User email address"}];
+  string first_name = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User first name"}];
+  string last_name = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User last name"}];
+  google.protobuf.Timestamp created_at = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Creation timestamp"}];
+  google.protobuf.Timestamp updated_at = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Last update timestamp"}];
+}
+
+message CreateUserRequest {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["display_name", "email"] }
+  };
+  string first_name = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "First name. Allowed characters: alphanumeric, hyphens, underscores. Max length: 150."
+    max_length: 150
+    pattern: "^[a-zA-Z0-9_-]+$"
+  }];
+  string last_name = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Last name. Allowed characters: alphanumeric, hyphens, underscores. Max length: 150."
+    max_length: 150
+    pattern: "^[a-zA-Z0-9_-]+$"
+  }];
+  string email        = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User email address"}];
+}
+
+message CreateUserResponse {
+  UserResponse user = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Created user details"}];
+}
+
+message GetUserRequest {
+  string user_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User resource ID (format: user.ULID)"}];
+}
+
+message ListUsersRequest {
+  int32 page_size = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maximum number of items to return (default: 20, max: 100)", minimum: 1, maximum: 100, default: "20"}];
+  string page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for fetching the next page of results"}];
+}
+
+message ListUsersResponse {
+  repeated UserResponse users = 1;
+  string next_page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for the next page, empty if no more results"}];
+}
+
+message DeleteUserRequest {
+  string user_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User resource ID (format: user.ULID)"}];
+}
+
+message DeleteUserResponse {}
+
+// ---------- INVITATIONS ----------
+
+// RoleAssignment is one (project, role) grant. An empty project_id is a
+// tenant-level (realm-wide) grant; a set project_id scopes the role to that
+// single project. role is the role's immutable slug — same vocabulary as
+// ProjectRoleAssignment.role and RoleView.role (a predefined role such as
+// ADMIN/EDITOR/VIEWER, or one the tenant defines).
+message RoleAssignment {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Target project (format: project.ULID); empty = tenant-level (realm-wide) grant"}];
+  string role       = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Role to grant: the stable UPPERCASE slug (e.g. ADMIN, EDITOR, VIEWER, or a tenant-defined role)"}];
+}
+
+message InviteUserRequest {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["email", "roleAssignments"] }
+  };
+  string email = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Email address to invite"}];
+  // Field 2 ("role") reserved: the single caller-selected role was replaced by
+  // the assignments list below.
+  reserved 2;
+  reserved "role";
+  // (project, role) pairs granted when the invitee accepts. Each project_id must
+  // be a project of the caller's tenant.
+  repeated RoleAssignment role_assignments = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Role assignments granted on accept"}];
+}
+
+message RemoveTenantMemberRequest {
+  string user_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "ID of the user to remove from the caller's tenant (format: user.ULID)"}];
+}
+
+message RemoveTenantMemberResponse {}
+
+message GetInvitationInfoRequest {
+  // KC organization id carried in the invite link (?org=...). Maps to a tenant.
+  string org_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Organization id from the invite link"}];
+}
+message GetInvitationInfoResponse {
+  string tenant_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant resource ID (format: tenant.ULID)"}];
+  string tenant_name = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant display name"}];
+  string email = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Invited email address"}];
+  // Field 4 ("role") reserved: replaced by the assignments list.
+  reserved 4;
+  reserved "role";
+  string status = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Invitation status: \"PENDING\" or \"EXPIRED\""}];
+  // (project, role) pairs granted on accept.
+  repeated RoleAssignment role_assignments = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Role assignments granted on accept"}];
+  // needs_personal_details is true when the invitee has no user record yet (a
+  // brand-new invitee). The console shows the personal-details step (CompleteSignup
+  // with invited=true) — which creates the user record — before the accept page.
+  // An invitee who already has a user record (from registration, a prior invite,
+  // or backfill) skips the step. AcceptInvitation requires the record to exist.
+  bool needs_personal_details = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Whether the invitee must supply personal details (no user record yet) before accepting"}];
+}
+message AcceptInvitationRequest {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["org_id"] }
+  };
+  // KC organization id carried in the invite link (?org=...). Maps to a tenant.
+  string org_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Organization id from the invite link"}];
+}
+message AcceptInvitationResponse {
+  string user_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "The joined user's resource ID (format: user.ULID)"}];
+  string tenant_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant the caller joined (format: tenant.ULID)"}];
+  // Field 3 ("role") reserved: replaced by the assignments list.
+  reserved 3;
+  reserved "role";
+  // (project, role) pairs granted to the caller.
+  repeated RoleAssignment role_assignments = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Role assignments granted"}];
+}
+
+message InvitedUser {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["id", "tenant_id", "email", "roleAssignments", "created_at"] }
+  };
+  string id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Invitation resource ID (format: invited-user.ULID)"}];
+  string tenant_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant resource ID (format: tenant.ULID)"}];
+  string email = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Invitee email address"}];
+  // Field 4 ("role") reserved: replaced by the assignments list.
+  reserved 4;
+  reserved "role";
+  repeated RoleAssignment role_assignments = 9 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Role assignments granted on accept"}];
+  string invited_by = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Subject ID of the inviting admin (empty if unknown)"}];
+  google.protobuf.Timestamp created_at = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Creation timestamp"}];
+  string status = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Derived invitation status: \"PENDING\" or \"EXPIRED\""}]; // "PENDING" or "EXPIRED"
+  google.protobuf.Timestamp expires_at = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Invitation link expiry (created_at + 7 days; reset on resend)"}];
+}
+
+message InviteUserResponse {
+  InvitedUser invitation = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "The created pending invitation"}];
+}
+
+message ListInvitationsRequest {
+  int32 page_size = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maximum number of items to return (default: 20, max: 100)", minimum: 1, maximum: 100, default: "20"}];
+  string page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for fetching the next page of results"}];
+}
+
+message ListInvitationsResponse {
+  repeated InvitedUser invitations = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Pending invitations for the tenant, newest first"}];
+  string next_page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for the next page, empty if no more results"}];
+}
+
+message ListTenantMembersRequest {
+  int32 page_size = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maximum number of items to return (default: 20, max: 100)", minimum: 1, maximum: 100, default: "20"}];
+  string page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for fetching the next page of results"}];
+}
+
+message TenantMember {
+  string id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User resource ID (format: user.ULID)"}];
+  string email = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User email address"}];
+  string display_name = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User display name"}];
+  // Field 4 ("roles") removed: a closed enum of tenant-scope predefined roles,
+  // superseded by role_assignments, which covers project scope and
+  // tenant-defined roles.
+  reserved 4;
+  reserved "roles";
+  // Every role binding this member holds in the tenant, verbatim: an empty
+  // project_id is a tenant-scope grant. Same shape as the invitations list, and
+  // the vocabulary PUT /users/{user_id}/access accepts.
+  repeated RoleAssignment role_assignments = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Role bindings held in this tenant; empty project_id = tenant scope. Multiple entries per project are possible."}];
+  google.protobuf.Timestamp joined_at = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "When the user joined this tenant. Not the account creation date, which differs for a member invited after signing up."}];
+}
+
+message ListTenantMembersResponse {
+  repeated TenantMember members = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Members of the tenant"}];
+  string next_page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for the next page, empty if no more results"}];
+}
+
+message ListTenantDomainsRequest {}
+
+message TenantDomain {
+  string id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant-domain resource ID (format: tenant-domain.ULID)"}];
+  string domain = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Email domain, lowercase (e.g. \"acme.com\")"}];
+  string compliance_status = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Verification status: \"UNVERIFIED\" or \"VERIFIED\""}];
+  google.protobuf.Timestamp created_at = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Creation timestamp"}];
+}
+
+message ListTenantDomainsResponse {
+  repeated TenantDomain domains = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "The tenant's domains; verified ones gate own-domain invites"}];
+}
+
+message ResendInvitationRequest {
+  string invitation_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Invitation resource ID (format: invited-user.ULID)"}];
+}
+
+message ResendInvitationResponse {
+  InvitedUser invitation = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "The invitation, with a refreshed expiry"}];
+}
+
+message RevokeInvitationRequest {
+  string invitation_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Invitation resource ID (format: invited-user.ULID)"}];
+}
+
+message RevokeInvitationResponse {}
+
+// ---------- SERVICE ACCOUNTS ----------
+
+message ServiceAccountResponse {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["id", "tenant_id", "display_name", "client_id", "created_at", "updated_at"] }
+  };
+  string id           = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Service account resource ID (format: service-account.ULID)"}];
+  string tenant_id    = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant resource ID (format: tenant.ULID)"}];
+  string display_name = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Service account display name"}];
+  google.protobuf.Timestamp created_at = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Creation timestamp"}];
+  google.protobuf.Timestamp updated_at = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Last update timestamp"}];
+  string client_id    = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "OAuth2 client ID used for client_credentials authentication"}];
+}
+
+message ServiceAccountCredentials {
+  string client_id     = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "OAuth2 client ID"}];
+  string client_secret = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "OAuth2 client secret (returned once — store securely)"}];
+  string token_url     = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token endpoint URL for client_credentials grant"}];
+}
+
+message CreateServiceAccountRequest {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["display_name"] }
+  };
+  string display_name = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Display name. Allowed characters: alphanumeric, hyphens, underscores. Max length: 150."
+    max_length: 150
+    pattern: "^[a-zA-Z0-9_-]+$"
+  }];
+}
+
+message CreateServiceAccountResponse {
+  ServiceAccountResponse service_account = 1;
+  // Returned once — never again. Store securely.
+  ServiceAccountCredentials credentials = 2;
+}
+
+message GetServiceAccountRequest {
+  string account_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Service account resource ID (format: service-account.ULID)"}];
+}
+
+message ListServiceAccountsRequest {
+  int32 page_size = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maximum number of items to return (default: 20, max: 100)", minimum: 1, maximum: 100, default: "20"}];
+  string page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for fetching the next page of results"}];
+}
+
+message ListServiceAccountsResponse {
+  repeated ServiceAccountResponse service_accounts = 1;
+  string next_page_token = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Token for the next page, empty if no more results"}];
+}
+
+message DeleteServiceAccountRequest {
+  string account_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Service account resource ID (format: service-account.ULID)"}];
+}
+
+message DeleteServiceAccountResponse {}
+
+// ---------- SERVICE ACCOUNT SECRET ----------
+
+message RotateServiceAccountSecretRequest {
+  string account_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Service account resource ID (format: service-account.ULID)"}]; // service account ID
+}
+
+message RotateServiceAccountSecretResponse {
+  ServiceAccountCredentials credentials = 1;
+}
+
+// ---------- TENANT ROLE BINDINGS ----------
+
+message GetUserTenantRolesRequest {
+  string user_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User resource ID (format: user.ULID)"}];
+}
+
+message SetUserTenantRolesRequest {
+  string         user_id    = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User resource ID (format: user.ULID)"}];
+  // Desired final set of tenant-level roles. PUT semantics — the existing
+  // bindings are replaced. Empty (or omitted) removes all bindings.
+  repeated RoleEnum.Role roles = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Desired final set of tenant-level roles (empty array removes all bindings)"}];
+}
+
+message GetServiceAccountTenantRolesRequest {
+  string account_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Service account resource ID (format: service-account.ULID)"}];
+}
+
+message SetServiceAccountTenantRolesRequest {
+  string         account_id    = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Service account resource ID (format: service-account.ULID)"}];
+  repeated RoleEnum.Role roles = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Desired final set of tenant-level roles (empty array removes all bindings)"}];
+}
+
+message SubjectTenantRolesResponse {
+  string         subject_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User or service account resource ID"}];
+  repeated RoleEnum.Role roles      = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Currently assigned tenant-level roles"}];
+  // Weak ETag (`W/\"...\"`) representing the current role-set version. Stable
+  // for a given (sorted role names) tuple; changes when the bindings change.
+  // Clients SHOULD treat this as opaque and re-`GET` after a `412` (concurrency
+  // enforcement via `If-Match` is planned; advisory in v1).
+  string         etag       = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Weak ETag for the current role set, e.g. W/\"a1b2c3\". Advisory in v1."}];
+}
+
+// ---------- PROJECT ROLE BINDINGS ----------
+
+message SubjectTypeEnum{
+  enum SubjectType {
+    UNSPECIFIED = 0;
+    USER = 1;
+    SERVICE_ACCOUNT = 2;
+  }
+}
+
+message GetUserProjectRolesRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string user_id    = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User resource ID (format: user.ULID)"}];
+}
+
+message SetUserProjectRolesRequest {
+  string         project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string         user_id    = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User resource ID (format: user.ULID)"}];
+  repeated RoleEnum.Role roles = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Desired final set of project-level roles (empty array removes all bindings on this project)"}];
+}
+
+message GetServiceAccountProjectRolesRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string account_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Service account resource ID (format: service-account.ULID)"}];
+}
+
+message SetServiceAccountProjectRolesRequest {
+  string         project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string         account_id = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Service account resource ID (format: service-account.ULID)"}];
+  repeated RoleEnum.Role roles = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Desired final set of project-level roles (empty array removes all bindings on this project)"}];
+}
+
+message SubjectProjectRolesResponse {
+  string        subject_id   = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User or service account resource ID"}];
+  string        project_id   = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  SubjectTypeEnum.SubjectType   subject_type = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Whether subject is a USER or SERVICE_ACCOUNT"}];
+  repeated RoleEnum.Role roles        = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Currently assigned project-level roles"}];
+  // Weak ETag for the (subject, project) role-set version. Advisory in v1.
+  string        etag         = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Weak ETag for the current role set, e.g. W/\"a1b2c3\". Advisory in v1."}];
+}
+
+message ListProjectMembersRequest {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+}
+
+message ProjectMember {
+  string        subject_id    = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User or service account resource ID"}];
+  SubjectTypeEnum.SubjectType   subject_type  = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Whether subject is a USER or SERVICE_ACCOUNT"}];
+  string        display_name  = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Display name"}];
+  string        email         = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Email address (empty for service accounts)"}];
+  repeated RoleEnum.Role project_roles = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project-level roles assigned to this member"}];
+}
+
+message ListProjectMembersResponse {
+  repeated ProjectMember members = 1;
+}
+
+// ---------- ACCESS MANAGEMENT ----------
+
+// SetUserAccessRequest fully replaces a user's access in one call. Both scopes
+// may be set together (a subject may hold tenant roles AND project roles); an
+// empty list clears that scope, and an empty request clears all access.
+message SetUserAccessRequest {
+  string user_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User resource ID (format: user.ULID); tenant is implicit from context"}];
+  repeated string tenant_roles = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Desired tenant-scope role names (ADMIN | EDITOR | VIEWER). Empty clears tenant-scope access."}];
+  repeated ProjectRoleAssignment project_roles = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Desired project-scope role assignments; multiple roles per project allowed. Empty clears project-scope access."}];
+}
+
+message ProjectRoleAssignment {
+  string project_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string role       = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Role name: the stable UPPERCASE slug (ADMIN | EDITOR | VIEWER)"}];
+}
+
+message SetServiceAccountAccessRequest {
+  string service_account_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Service account resource ID (format: sa.ULID); tenant is implicit from context"}];
+  repeated string tenant_roles = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Desired tenant-scope role names (ADMIN | EDITOR | VIEWER). Empty clears tenant-scope access."}];
+  repeated ProjectRoleAssignment project_roles = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Desired project-scope role assignments; multiple roles per project allowed. Empty clears project-scope access."}];
+}
+
+// ---------- ENUMS ----------
+
+// Role is used for both tenant-level and project-level roles.
+// Tenant: ADMIN, EDITOR, VIEWER. Project: ADMIN, EDITOR, VIEWER.
+message RoleEnum{
+  enum Role {
+    UNSPECIFIED = 0;
+    ADMIN = 1;
+    EDITOR = 2;
+    VIEWER = 3;
+  }
+}

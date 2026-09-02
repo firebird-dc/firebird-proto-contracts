@@ -1,0 +1,115 @@
+syntax = "proto3";
+
+package firebird.api.v1;
+
+option go_package = "github.com/firebird-dc/firebird-proto-contracts/gen/go;v1";
+
+import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+import "common.proto";
+
+
+// ==========================
+// Service
+// ==========================
+
+service AuditService {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
+    name: "Audit"
+    description: "Audit log API.\nFilter by tenant_id, trace_id, correlation_id, target_kind, target_id, related_kind, related_id — each filter is independent and combined with AND\n\n- Troubleshoot who did what and when\n\nPagination:\n- Cursor-based using pageSize and pageToken\n\nTip:\n- Provide from_ts/to_ts for defining the date range for best performance and predictable results"
+  };
+
+  rpc ListAuditEvents(ListAuditEventsRequest) returns (ListAuditEventsResponse) {
+    option (google.api.http) = { get: "/audit" };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "List audit events";
+      description: "Lists audit events with optional filters and cursor pagination using page_size and page_token for the next page";
+      tags: "Audit";
+      security: {
+        security_requirement: { key: "BearerAuth"; value: {}; };
+      };
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.ListAuditEventsResponse" }
+          }
+        };
+      }
+    };
+  }
+}
+
+// ==========================
+// Messages
+// ==========================
+
+message AuditEvent {
+  string id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Audit event resource ID"}];
+  google.protobuf.Timestamp ts = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Event timestamp"}];
+  string tenant_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant resource ID (format: tenant.ULID)"}];
+  string project_id = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
+  string project_name = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project Name"}];
+  string source = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Event source (e.g. grpc, controller)"}];
+
+  ActorTypeEnum.ActorType actor_type = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Type of actor (user, system)"}];
+  string actor_id = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Actor identifier"}];
+  string actor_display_name = 9 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Actor Display Name"}];
+
+  string correlation_id = 10 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Request correlation ID"}];
+  optional string trace_id = 11 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Distributed trace ID"}];
+  optional string span_id = 12 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Distributed trace span ID"}];
+
+  string state = 13 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Event state: PENDING, IN_PROGRESS, COMPLETED, FAILED or RETRYABLE"}];
+
+  OperationAction operation_action = 14 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Action performed (e.g. create, delete, provision)"}];
+  // 15 was operation_provider: an internal backend identifier, not part of the tenant contract.
+  reserved 15;
+  reserved "operation_provider";
+
+  EntityTypeEnum.EntityType target_kind = 16 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Type of the target entity"}];
+  optional string target_id = 17 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Target entity ID"}];
+  optional string target_name= 18 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Target entity name"}];
+
+  EntityTypeEnum.EntityType related_kind = 19 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Type of the related entity"}];
+  optional string related_id = 20 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Related entity ID"}];
+
+  optional string task_id = 21 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Associated task ID"}];
+
+  optional string http_method = 22 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "HTTP method (GET, POST, etc.)"}];
+  optional string http_path = 23 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "HTTP request path"}];
+  optional int32 http_status = 24 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "HTTP response status code"}];
+
+  optional int64 duration_ms = 25 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Operation duration in milliseconds", type: INTEGER, format: "int64"}];
+
+  optional string error_code = 26 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Error code if operation failed"}];
+  optional string error_message = 27 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Error message if operation failed"}];
+}
+
+message ListAuditEventsRequest {
+  optional int32 page_size = 1;
+  optional string page_token = 2;
+
+  optional google.protobuf.Timestamp from_ts = 3; // inclusive
+  optional google.protobuf.Timestamp to_ts = 4;   // exclusive
+
+  optional string project_id = 5;
+  optional OperationAction operation_action = 6;
+
+  optional string trace_id = 7;
+  optional string correlation_id = 8;
+
+  optional EntityTypeEnum.EntityType target_kind = 9;
+  optional string target_id = 10;
+
+  optional EntityTypeEnum.EntityType related_kind = 11;
+  optional string related_id = 12;
+}
+
+message ListAuditEventsResponse {
+  repeated AuditEvent items = 1;
+  int32 page_size = 2;
+  string next_page_token = 3;
+}
