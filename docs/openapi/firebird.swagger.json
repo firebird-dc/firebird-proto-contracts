@@ -26,6 +26,9 @@
       "description": "Bare-metal server lifecycle operations.\n\nIncludes:\n- List and get bare-metal servers\n- Provision operations\n- Power on/off, reboot\n- Attach / detach bare-metal servers to subnets\n\nAll endpoints require a Bearer token (Authorization header)."
     },
     {
+      "name": "BMConsoleService"
+    },
+    {
       "name": "Network",
       "description": "Network (VPC) API.\n\nUse this section to:\n- Create and manage VPCs within a project\n- Manage subnets under a VPC\n- Manage firewall rules for network traffic control\n\nCommon fields:\n- project_id scopes all operations\n- vpc_id scopes subnet operations\n\nNotes:\n- state reflects lifecycle (PROVISIONING/READY/ERROR/DELETING)\n\nPagination:\n- List endpoints use limit and offset"
     },
@@ -1666,6 +1669,44 @@
         ],
         "tags": [
           "Bare Metal"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/projects/{projectId}/compute/bms/{bmId}/console-sessions": {
+      "post": {
+        "summary": "Open an interactive bare-metal console",
+        "description": "Creates a one-use console launch URL. Requires baremetal.bm:console. Available during provisioning; no provisioning operation is created. Never log or persist the returned URL.",
+        "operationId": "BMConsoleService_CreateBMConsoleSession",
+        "responses": {},
+        "parameters": [
+          {
+            "name": "projectId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "bmId",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/BMConsoleServiceCreateBMConsoleSessionBody"
+            }
+          }
+        ],
+        "tags": [
+          "BM Console"
         ],
         "security": [
           {
@@ -5518,6 +5559,9 @@
         "SERVICE"
       ]
     },
+    "BMConsoleServiceCreateBMConsoleSessionBody": {
+      "type": "object"
+    },
     "BMDhcpServiceCreateDhcpReservationBody": {
       "type": "object",
       "properties": {
@@ -6718,6 +6762,22 @@
         "model",
         "architecture"
       ]
+    },
+    "v1CreateBMConsoleSessionResponse": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        },
+        "connectBefore": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "expiresAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
     },
     "v1CreateMaintenanceEventForInstanceRequest": {
       "type": "object",

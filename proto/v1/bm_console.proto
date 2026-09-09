@@ -1,0 +1,30 @@
+syntax = "proto3";
+package firebird.api.v1;
+option go_package = "github.com/firebird-dc/firebird-proto-contracts/gen/go;v1";
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+message CreateBMConsoleSessionRequest {
+  string project_id = 1;
+  string bm_id = 2;
+}
+message CreateBMConsoleSessionResponse {
+  // One-use launch URL. Sensitive: do not log or persist this value.
+  string url = 1;
+  google.protobuf.Timestamp connect_before = 2;
+  google.protobuf.Timestamp expires_at = 3;
+}
+service BMConsoleService {
+  rpc CreateBMConsoleSession(CreateBMConsoleSessionRequest) returns (CreateBMConsoleSessionResponse) {
+    option (google.api.http) = {
+      post: "/projects/{project_id}/compute/bms/{bm_id}/console-sessions"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Open an interactive bare-metal console"
+      description: "Creates a one-use console launch URL. Requires baremetal.bm:console. Available during provisioning; no provisioning operation is created. Never log or persist the returned URL."
+      tags: "BM Console"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; }; }
+    };
+  }
+}
