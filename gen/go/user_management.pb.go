@@ -4077,14 +4077,14 @@ const file_user_management_proto_rawDesc = "" +
 	"expires_in\x18\x03 \x01(\x05B*\x92A'2\x19Token lifetime in seconds\x9a\x02\x01\x03\xa2\x02\x05int32R\texpiresIn\x12W\n" +
 	"\rrefresh_token\x18\x04 \x01(\tB2\x92A/2-Refresh token for obtaining new access tokensR\frefreshToken\x12-\n" +
 	"\bid_token\x18\x05 \x01(\tB\x12\x92A\x0f2\rOIDC ID tokenR\aidToken\"\x14\n" +
-	"\x12GetUserInfoRequest\"\xad\b\n" +
-	"\x13GetUserInfoResponse\x12B\n" +
-	"\auser_id\x18\x01 \x01(\tB)\x92A&2$User resource ID (format: user.ULID)R\x06userId\x12-\n" +
+	"\x12GetUserInfoRequest\"\xbb\t\n" +
+	"\x13GetUserInfoResponse\x12k\n" +
+	"\auser_id\x18\x01 \x01(\tBR\x92AO2MCaller resource ID: user.ULID, or service_account.ULID for a service account.R\x06userId\x12-\n" +
 	"\x05email\x18\x02 \x01(\tB\x17\x92A\x142\x12User email addressR\x05email\x129\n" +
-	"\fdisplay_name\x18\x03 \x01(\tB\x16\x92A\x132\x11User display nameR\vdisplayName\x12\x9b\x01\n" +
-	"\ttenant_id\x18\x04 \x01(\tB~\x92Ay2wDeprecated: use tenants instead. Populated with the user's first (oldest-membership) tenant for backward compatibility.\x18\x01R\btenantId\x12\x92\x01\n" +
-	"\ftenant_roles\x18\x05 \x03(\x0e2\x1e.firebird.api.v1.RoleEnum.RoleBO\x92AJ2HDeprecated: use roles instead. Tenant-level roles assigned to this user.\x18\x01R\vtenantRoles\x12\xbc\x01\n" +
-	"\atenants\x18\a \x03(\v2\x1b.firebird.api.v1.TenantInfoB\x84\x01\x92A\x80\x012~All tenants this user is a member of (via invitations or their home tenant). Includes the active tenant reported in tenant_id.R\atenants\x12\xa5\x01\n" +
+	"\fdisplay_name\x18\x03 \x01(\tB\x16\x92A\x132\x11User display nameR\vdisplayName\x12\xd0\x01\n" +
+	"\ttenant_id\x18\x04 \x01(\tB\xb2\x01\x92A\xac\x012\xa9\x01Deprecated: use tenants instead. Populated with the first entry of tenants (a user's oldest membership, or a service account's owning tenant) for backward compatibility.\x18\x01R\btenantId\x12\x92\x01\n" +
+	"\ftenant_roles\x18\x05 \x03(\x0e2\x1e.firebird.api.v1.RoleEnum.RoleBO\x92AJ2HDeprecated: use roles instead. Tenant-level roles assigned to this user.\x18\x01R\vtenantRoles\x12\xec\x01\n" +
+	"\atenants\x18\a \x03(\v2\x1b.firebird.api.v1.TenantInfoB\xb4\x01\x92A\xb0\x012\xad\x01Tenants the caller belongs to: a user's memberships (via invitations or home tenant), or a service account's single owning tenant. Includes the tenant reported in tenant_id.R\atenants\x12\xa5\x01\n" +
 	"\x05roles\x18\b \x03(\v2\x19.firebird.api.v1.RoleViewBt\x92Aq2oDisplay: the caller's role bindings verbatim, across every tenant they belong to. project_id \"\" = tenant scope.R\x05roles\x12\xc7\x01\n" +
 	"\x06access\x18\t \x03(\v2\x1c.firebird.api.v1.AccessEntryB\x90\x01\x92A\x8c\x012\x89\x01Gating: effective, fully-expanded permission keys grouped by (tenant_id, project_id). project_id \"\" = tenant scope (covers all projects).R\x06accessJ\x04\b\x06\x10\a\"\xd8\x02\n" +
 	"\bRoleView\x12J\n" +

@@ -7372,7 +7372,7 @@
       "properties": {
         "userId": {
           "type": "string",
-          "description": "User resource ID (format: user.ULID)"
+          "description": "Caller resource ID: user.ULID, or service_account.ULID for a service account."
         },
         "email": {
           "type": "string",
@@ -7384,7 +7384,7 @@
         },
         "tenantId": {
           "type": "string",
-          "description": "Deprecated: use tenants instead. Populated with the user's first (oldest-membership) tenant for backward compatibility."
+          "description": "Deprecated: use tenants instead. Populated with the first entry of tenants (a user's oldest membership, or a service account's owning tenant) for backward compatibility."
         },
         "tenantRoles": {
           "type": "array",
@@ -7399,7 +7399,7 @@
             "type": "object",
             "$ref": "#/definitions/v1TenantInfo"
           },
-          "description": "All tenants this user is a member of (via invitations or their home tenant). Includes the active tenant reported in tenant_id."
+          "description": "Tenants the caller belongs to: a user's memberships (via invitations or home tenant), or a service account's single owning tenant. Includes the tenant reported in tenant_id."
         },
         "roles": {
           "type": "array",
