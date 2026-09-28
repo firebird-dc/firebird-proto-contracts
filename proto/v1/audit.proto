@@ -5,6 +5,7 @@ package firebird.api.v1;
 option go_package = "github.com/firebird-dc/firebird-proto-contracts/gen/go;v1";
 
 import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
 import "google/api/annotations.proto";
 import "protoc-gen-openapiv2/options/annotations.proto";
 import "common.proto";
@@ -86,6 +87,16 @@ message AuditEvent {
 
   optional string error_code = 26 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Error code if operation failed"}];
   optional string error_message = 27 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Error message if operation failed"}];
+
+  google.protobuf.Struct details = 28 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Event-specific structured detail (e.g. old/new count for a resize, ssh_key_id for a key attach). Shape varies by operation_action; absent when an event carries no extra detail."}];
+
+  // Request provenance. source_ip and user_agent are set on events emitted while
+  // serving an API request and absent on controller/system events. region is set
+  // on every event emitted by a process with a configured region, controller
+  // events included. All three are absent on events recorded before capture existed.
+  optional string source_ip = 29 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "IP address of the API caller: the client address reported by a trusted Firebird ingress proxy, otherwise the connecting peer. Absent for controller/system events."}];
+  optional string user_agent = 30 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User-Agent of the API caller (non-printable characters replaced, truncated to 512 bytes). Absent for controller/system events or when the caller sent none."}];
+  optional string region = 31 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Region ID of the Firebird deployment that recorded the event (e.g. am-w1). Present on every event, API or controller, emitted by a deployment with a configured region; absent on events recorded before capture existed."}];
 }
 
 message ListAuditEventsRequest {
