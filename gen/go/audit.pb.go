@@ -54,8 +54,10 @@ type AuditEvent struct {
 	ErrorCode        *string                   `protobuf:"bytes,26,opt,name=error_code,json=errorCode,proto3,oneof" json:"error_code,omitempty"`
 	ErrorMessage     *string                   `protobuf:"bytes,27,opt,name=error_message,json=errorMessage,proto3,oneof" json:"error_message,omitempty"`
 	Details          *structpb.Struct          `protobuf:"bytes,28,opt,name=details,proto3" json:"details,omitempty"`
-	// Request provenance. Set on events emitted while serving an API request;
-	// absent on controller/system events and on events recorded before capture existed.
+	// Request provenance. source_ip and user_agent are set on events emitted while
+	// serving an API request and absent on controller/system events. region is set
+	// on every event emitted by a process with a configured region, controller
+	// events included. All three are absent on events recorded before capture existed.
 	SourceIp      *string `protobuf:"bytes,29,opt,name=source_ip,json=sourceIp,proto3,oneof" json:"source_ip,omitempty"`
 	UserAgent     *string `protobuf:"bytes,30,opt,name=user_agent,json=userAgent,proto3,oneof" json:"user_agent,omitempty"`
 	Region        *string `protobuf:"bytes,31,opt,name=region,proto3,oneof" json:"region,omitempty"`
@@ -499,7 +501,7 @@ var File_audit_proto protoreflect.FileDescriptor
 
 const file_audit_proto_rawDesc = "" +
 	"\n" +
-	"\vaudit.proto\x12\x0ffirebird.api.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1cgoogle/api/annotations.proto\x1a.protoc-gen-openapiv2/options/annotations.proto\x1a\fcommon.proto\"\xc5\x16\n" +
+	"\vaudit.proto\x12\x0ffirebird.api.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1cgoogle/api/annotations.proto\x1a.protoc-gen-openapiv2/options/annotations.proto\x1a\fcommon.proto\"\x9a\x18\n" +
 	"\n" +
 	"AuditEvent\x12,\n" +
 	"\x02id\x18\x01 \x01(\tB\x1c\x92A\x192\x17Audit event resource IDR\x02id\x12@\n" +
@@ -539,11 +541,11 @@ const file_audit_proto_rawDesc = "" +
 	"error_code\x18\x1a \x01(\tB#\x92A 2\x1eError code if operation failedH\n" +
 	"R\terrorCode\x88\x01\x01\x12P\n" +
 	"\rerror_message\x18\x1b \x01(\tB&\x92A#2!Error message if operation failedH\vR\ferrorMessage\x88\x01\x01\x12\xeb\x01\n" +
-	"\adetails\x18\x1c \x01(\v2\x17.google.protobuf.StructB\xb7\x01\x92A\xb3\x012\xb0\x01Event-specific structured detail (e.g. old/new count for a resize, ssh_key_id for a key attach). Shape varies by operation_action; absent when an event carries no extra detail.R\adetails\x12\x8a\x01\n" +
-	"\tsource_ip\x18\x1d \x01(\tBh\x92Ae2cIP address of the API caller, as seen by the Firebird ingress. Absent for controller/system events.H\fR\bsourceIp\x88\x01\x01\x12\xc7\x01\n" +
+	"\adetails\x18\x1c \x01(\v2\x17.google.protobuf.StructB\xb7\x01\x92A\xb3\x012\xb0\x01Event-specific structured detail (e.g. old/new count for a resize, ssh_key_id for a key attach). Shape varies by operation_action; absent when an event carries no extra detail.R\adetails\x12\xcc\x01\n" +
+	"\tsource_ip\x18\x1d \x01(\tB\xa9\x01\x92A\xa5\x012\xa2\x01IP address of the API caller: the client address reported by a trusted Firebird ingress proxy, otherwise the connecting peer. Absent for controller/system events.H\fR\bsourceIp\x88\x01\x01\x12\xc7\x01\n" +
 	"\n" +
-	"user_agent\x18\x1e \x01(\tB\xa2\x01\x92A\x9e\x012\x9b\x01User-Agent of the API caller (non-printable characters replaced, truncated to 512 bytes). Absent for controller/system events or when the caller sent none.H\rR\tuserAgent\x88\x01\x01\x12l\n" +
-	"\x06region\x18\x1f \x01(\tBO\x92AL2JRegion ID of the Firebird deployment that recorded the event (e.g. am-w1).H\x0eR\x06region\x88\x01\x01B\v\n" +
+	"user_agent\x18\x1e \x01(\tB\xa2\x01\x92A\x9e\x012\x9b\x01User-Agent of the API caller (non-printable characters replaced, truncated to 512 bytes). Absent for controller/system events or when the caller sent none.H\rR\tuserAgent\x88\x01\x01\x12\xfe\x01\n" +
+	"\x06region\x18\x1f \x01(\tB\xe0\x01\x92A\xdc\x012\xd9\x01Region ID of the Firebird deployment that recorded the event (e.g. am-w1). Present on every event, API or controller, emitted by a deployment with a configured region; absent on events recorded before capture existed.H\x0eR\x06region\x88\x01\x01B\v\n" +
 	"\t_trace_idB\n" +
 	"\n" +
 	"\b_span_idB\f\n" +

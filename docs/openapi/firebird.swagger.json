@@ -6550,7 +6550,7 @@
         },
         "sourceIp": {
           "type": "string",
-          "description": "IP address of the API caller, as seen by the Firebird ingress. Absent for controller/system events."
+          "description": "IP address of the API caller: the client address reported by a trusted Firebird ingress proxy, otherwise the connecting peer. Absent for controller/system events."
         },
         "userAgent": {
           "type": "string",
@@ -6558,7 +6558,7 @@
         },
         "region": {
           "type": "string",
-          "description": "Region ID of the Firebird deployment that recorded the event (e.g. am-w1)."
+          "description": "Region ID of the Firebird deployment that recorded the event (e.g. am-w1). Present on every event, API or controller, emitted by a deployment with a configured region; absent on events recorded before capture existed."
         }
       }
     },
