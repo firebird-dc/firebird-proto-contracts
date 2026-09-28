@@ -11,6 +11,7 @@ import (
 	_ "google.golang.org/genproto/googleapis/api/annotations"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
@@ -52,8 +53,14 @@ type AuditEvent struct {
 	DurationMs       *int64                    `protobuf:"varint,25,opt,name=duration_ms,json=durationMs,proto3,oneof" json:"duration_ms,omitempty"`
 	ErrorCode        *string                   `protobuf:"bytes,26,opt,name=error_code,json=errorCode,proto3,oneof" json:"error_code,omitempty"`
 	ErrorMessage     *string                   `protobuf:"bytes,27,opt,name=error_message,json=errorMessage,proto3,oneof" json:"error_message,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	Details          *structpb.Struct          `protobuf:"bytes,28,opt,name=details,proto3" json:"details,omitempty"`
+	// Request provenance. Set on events emitted while serving an API request;
+	// absent on controller/system events and on events recorded before capture existed.
+	SourceIp      *string `protobuf:"bytes,29,opt,name=source_ip,json=sourceIp,proto3,oneof" json:"source_ip,omitempty"`
+	UserAgent     *string `protobuf:"bytes,30,opt,name=user_agent,json=userAgent,proto3,oneof" json:"user_agent,omitempty"`
+	Region        *string `protobuf:"bytes,31,opt,name=region,proto3,oneof" json:"region,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AuditEvent) Reset() {
@@ -268,6 +275,34 @@ func (x *AuditEvent) GetErrorMessage() string {
 	return ""
 }
 
+func (x *AuditEvent) GetDetails() *structpb.Struct {
+	if x != nil {
+		return x.Details
+	}
+	return nil
+}
+
+func (x *AuditEvent) GetSourceIp() string {
+	if x != nil && x.SourceIp != nil {
+		return *x.SourceIp
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetUserAgent() string {
+	if x != nil && x.UserAgent != nil {
+		return *x.UserAgent
+	}
+	return ""
+}
+
+func (x *AuditEvent) GetRegion() string {
+	if x != nil && x.Region != nil {
+		return *x.Region
+	}
+	return ""
+}
+
 type ListAuditEventsRequest struct {
 	state           protoimpl.MessageState     `protogen:"open.v1"`
 	PageSize        *int32                     `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3,oneof" json:"page_size,omitempty"`
@@ -464,7 +499,7 @@ var File_audit_proto protoreflect.FileDescriptor
 
 const file_audit_proto_rawDesc = "" +
 	"\n" +
-	"\vaudit.proto\x12\x0ffirebird.api.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/api/annotations.proto\x1a.protoc-gen-openapiv2/options/annotations.proto\x1a\fcommon.proto\"\xea\x10\n" +
+	"\vaudit.proto\x12\x0ffirebird.api.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1cgoogle/api/annotations.proto\x1a.protoc-gen-openapiv2/options/annotations.proto\x1a\fcommon.proto\"\xc5\x16\n" +
 	"\n" +
 	"AuditEvent\x12,\n" +
 	"\x02id\x18\x01 \x01(\tB\x1c\x92A\x192\x17Audit event resource IDR\x02id\x12@\n" +
@@ -503,7 +538,12 @@ const file_audit_proto_rawDesc = "" +
 	"\n" +
 	"error_code\x18\x1a \x01(\tB#\x92A 2\x1eError code if operation failedH\n" +
 	"R\terrorCode\x88\x01\x01\x12P\n" +
-	"\rerror_message\x18\x1b \x01(\tB&\x92A#2!Error message if operation failedH\vR\ferrorMessage\x88\x01\x01B\v\n" +
+	"\rerror_message\x18\x1b \x01(\tB&\x92A#2!Error message if operation failedH\vR\ferrorMessage\x88\x01\x01\x12\xeb\x01\n" +
+	"\adetails\x18\x1c \x01(\v2\x17.google.protobuf.StructB\xb7\x01\x92A\xb3\x012\xb0\x01Event-specific structured detail (e.g. old/new count for a resize, ssh_key_id for a key attach). Shape varies by operation_action; absent when an event carries no extra detail.R\adetails\x12\x8a\x01\n" +
+	"\tsource_ip\x18\x1d \x01(\tBh\x92Ae2cIP address of the API caller, as seen by the Firebird ingress. Absent for controller/system events.H\fR\bsourceIp\x88\x01\x01\x12\xc7\x01\n" +
+	"\n" +
+	"user_agent\x18\x1e \x01(\tB\xa2\x01\x92A\x9e\x012\x9b\x01User-Agent of the API caller (non-printable characters replaced, truncated to 512 bytes). Absent for controller/system events or when the caller sent none.H\rR\tuserAgent\x88\x01\x01\x12l\n" +
+	"\x06region\x18\x1f \x01(\tBO\x92AL2JRegion ID of the Firebird deployment that recorded the event (e.g. am-w1).H\x0eR\x06region\x88\x01\x01B\v\n" +
 	"\t_trace_idB\n" +
 	"\n" +
 	"\b_span_idB\f\n" +
@@ -519,7 +559,11 @@ const file_audit_proto_rawDesc = "" +
 	"\f_http_statusB\x0e\n" +
 	"\f_duration_msB\r\n" +
 	"\v_error_codeB\x10\n" +
-	"\x0e_error_messageJ\x04\b\x0f\x10\x10R\x12operation_provider\"\xb1\x06\n" +
+	"\x0e_error_messageB\f\n" +
+	"\n" +
+	"_source_ipB\r\n" +
+	"\v_user_agentB\t\n" +
+	"\a_regionJ\x04\b\x0f\x10\x10R\x12operation_provider\"\xb1\x06\n" +
 	"\x16ListAuditEventsRequest\x12 \n" +
 	"\tpage_size\x18\x01 \x01(\x05H\x00R\bpageSize\x88\x01\x01\x12\"\n" +
 	"\n" +
@@ -599,6 +643,7 @@ var file_audit_proto_goTypes = []any{
 	(ActorTypeEnum_ActorType)(0),    // 4: firebird.api.v1.ActorTypeEnum.ActorType
 	(OperationAction)(0),            // 5: firebird.api.v1.OperationAction
 	(EntityTypeEnum_EntityType)(0),  // 6: firebird.api.v1.EntityTypeEnum.EntityType
+	(*structpb.Struct)(nil),         // 7: google.protobuf.Struct
 }
 var file_audit_proto_depIdxs = []int32{
 	3,  // 0: firebird.api.v1.AuditEvent.ts:type_name -> google.protobuf.Timestamp
@@ -606,19 +651,20 @@ var file_audit_proto_depIdxs = []int32{
 	5,  // 2: firebird.api.v1.AuditEvent.operation_action:type_name -> firebird.api.v1.OperationAction
 	6,  // 3: firebird.api.v1.AuditEvent.target_kind:type_name -> firebird.api.v1.EntityTypeEnum.EntityType
 	6,  // 4: firebird.api.v1.AuditEvent.related_kind:type_name -> firebird.api.v1.EntityTypeEnum.EntityType
-	3,  // 5: firebird.api.v1.ListAuditEventsRequest.from_ts:type_name -> google.protobuf.Timestamp
-	3,  // 6: firebird.api.v1.ListAuditEventsRequest.to_ts:type_name -> google.protobuf.Timestamp
-	5,  // 7: firebird.api.v1.ListAuditEventsRequest.operation_action:type_name -> firebird.api.v1.OperationAction
-	6,  // 8: firebird.api.v1.ListAuditEventsRequest.target_kind:type_name -> firebird.api.v1.EntityTypeEnum.EntityType
-	6,  // 9: firebird.api.v1.ListAuditEventsRequest.related_kind:type_name -> firebird.api.v1.EntityTypeEnum.EntityType
-	0,  // 10: firebird.api.v1.ListAuditEventsResponse.items:type_name -> firebird.api.v1.AuditEvent
-	1,  // 11: firebird.api.v1.AuditService.ListAuditEvents:input_type -> firebird.api.v1.ListAuditEventsRequest
-	2,  // 12: firebird.api.v1.AuditService.ListAuditEvents:output_type -> firebird.api.v1.ListAuditEventsResponse
-	12, // [12:13] is the sub-list for method output_type
-	11, // [11:12] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	7,  // 5: firebird.api.v1.AuditEvent.details:type_name -> google.protobuf.Struct
+	3,  // 6: firebird.api.v1.ListAuditEventsRequest.from_ts:type_name -> google.protobuf.Timestamp
+	3,  // 7: firebird.api.v1.ListAuditEventsRequest.to_ts:type_name -> google.protobuf.Timestamp
+	5,  // 8: firebird.api.v1.ListAuditEventsRequest.operation_action:type_name -> firebird.api.v1.OperationAction
+	6,  // 9: firebird.api.v1.ListAuditEventsRequest.target_kind:type_name -> firebird.api.v1.EntityTypeEnum.EntityType
+	6,  // 10: firebird.api.v1.ListAuditEventsRequest.related_kind:type_name -> firebird.api.v1.EntityTypeEnum.EntityType
+	0,  // 11: firebird.api.v1.ListAuditEventsResponse.items:type_name -> firebird.api.v1.AuditEvent
+	1,  // 12: firebird.api.v1.AuditService.ListAuditEvents:input_type -> firebird.api.v1.ListAuditEventsRequest
+	2,  // 13: firebird.api.v1.AuditService.ListAuditEvents:output_type -> firebird.api.v1.ListAuditEventsResponse
+	13, // [13:14] is the sub-list for method output_type
+	12, // [12:13] is the sub-list for method input_type
+	12, // [12:12] is the sub-list for extension type_name
+	12, // [12:12] is the sub-list for extension extendee
+	0,  // [0:12] is the sub-list for field type_name
 }
 
 func init() { file_audit_proto_init() }

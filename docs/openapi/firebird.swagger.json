@@ -6330,6 +6330,9 @@
         }
       }
     },
+    "protobufNullValue": {
+      "type": "string"
+    },
     "v1AbortImageUploadResponse": {
       "type": "object",
       "properties": {
@@ -6540,6 +6543,22 @@
         "errorMessage": {
           "type": "string",
           "description": "Error message if operation failed"
+        },
+        "details": {
+          "type": "object",
+          "description": "Event-specific structured detail (e.g. old/new count for a resize, ssh_key_id for a key attach). Shape varies by operation_action; absent when an event carries no extra detail."
+        },
+        "sourceIp": {
+          "type": "string",
+          "description": "IP address of the API caller, as seen by the Firebird ingress. Absent for controller/system events."
+        },
+        "userAgent": {
+          "type": "string",
+          "description": "User-Agent of the API caller (non-printable characters replaced, truncated to 512 bytes). Absent for controller/system events or when the caller sent none."
+        },
+        "region": {
+          "type": "string",
+          "description": "Region ID of the Firebird deployment that recorded the event (e.g. am-w1)."
         }
       }
     },
