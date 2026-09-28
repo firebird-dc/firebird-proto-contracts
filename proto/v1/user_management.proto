@@ -1142,13 +1142,13 @@ message TokenResponse {
 message GetUserInfoRequest {}
 
 message GetUserInfoResponse {
-  string                 user_id      = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User resource ID (format: user.ULID)"}];
+  string                 user_id      = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Caller resource ID: user.ULID, or service_account.ULID for a service account."}];
   string                 email        = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User email address"}];
   string                 display_name = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "User display name"}];
-  string                 tenant_id    = 4 [deprecated = true, (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Deprecated: use tenants instead. Populated with the user's first (oldest-membership) tenant for backward compatibility."}];
+  string                 tenant_id    = 4 [deprecated = true, (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Deprecated: use tenants instead. Populated with the first entry of tenants (a user's oldest membership, or a service account's owning tenant) for backward compatibility."}];
   repeated RoleEnum.Role tenant_roles = 5 [deprecated = true, (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Deprecated: use roles instead. Tenant-level roles assigned to this user."}];
   reserved 6; // was: TenantInfo tenant (single active tenant) — replaced by tenants
-  repeated TenantInfo    tenants      = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "All tenants this user is a member of (via invitations or their home tenant). Includes the active tenant reported in tenant_id."}];
+  repeated TenantInfo    tenants      = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenants the caller belongs to: a user's memberships (via invitations or home tenant), or a service account's single owning tenant. Includes the tenant reported in tenant_id."}];
   repeated RoleView      roles        = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Display: the caller's role bindings verbatim, across every tenant they belong to. project_id \"\" = tenant scope."}];
   repeated AccessEntry   access       = 9 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Gating: effective, fully-expanded permission keys grouped by (tenant_id, project_id). project_id \"\" = tenant scope (covers all projects)."}];
 }
