@@ -390,6 +390,7 @@ type CreateFilesystemRequest struct {
 	TotalCapacityGb int64 `protobuf:"varint,3,opt,name=total_capacity_gb,json=totalCapacityGb,proto3" json:"total_capacity_gb,omitempty"`
 	// Structured capacity. If not provided, total_capacity_gb is used as {size: total_capacity_gb, unit: "GiB"}.
 	Capacity      *FilesystemCapacity `protobuf:"bytes,4,opt,name=capacity,proto3" json:"capacity,omitempty"`
+	Encrypted     bool                `protobuf:"varint,5,opt,name=encrypted,proto3" json:"encrypted,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -451,6 +452,13 @@ func (x *CreateFilesystemRequest) GetCapacity() *FilesystemCapacity {
 		return x.Capacity
 	}
 	return nil
+}
+
+func (x *CreateFilesystemRequest) GetEncrypted() bool {
+	if x != nil {
+		return x.Encrypted
+	}
+	return false
 }
 
 type GetFilesystemRequest struct {
@@ -1191,13 +1199,14 @@ const file_filesystem_proto_rawDesc = "" +
 	"\x05READY\x10\x02\x12\f\n" +
 	"\bUPDATING\x10\x03\x12\t\n" +
 	"\x05ERROR\x10\x04\x12\f\n" +
-	"\bDELETING\x10\x05\"\xa4\x04\n" +
+	"\bDELETING\x10\x05\"\xc0\x05\n" +
 	"\x17CreateFilesystemRequest\x12N\n" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tB/\x92A,2*Project resource ID (format: project.ULID)R\tprojectId\x12\x88\x01\n" +
 	"\x04name\x18\x02 \x01(\tBt\x92Aq2YFilesystem name. Allowed characters: alphanumeric, hyphens, underscores. Max length: 150.x\x96\x01\x8a\x01\x10^[a-zA-Z0-9_-]+$R\x04name\x12\x8f\x01\n" +
 	"\x11total_capacity_gb\x18\x03 \x01(\x03Bc\x92A^2CDeprecated: Total capacity in gigabytes (GB). Use capacity instead.J\x0210i\x00\x00\x00\x00\x00\x00\xf0?\x9a\x02\x01\x03\xa2\x02\x05int64\x18\x01R\x0ftotalCapacityGb\x12\x8d\x01\n" +
-	"\bcapacity\x18\x04 \x01(\v2#.firebird.api.v1.FilesystemCapacityBL\x92AI2GFilesystem capacity. Either this or total_capacity_gb must be provided.R\bcapacity:\f\x92A\t\n" +
+	"\bcapacity\x18\x04 \x01(\v2#.firebird.api.v1.FilesystemCapacityBL\x92AI2GFilesystem capacity. Either this or total_capacity_gb must be provided.R\bcapacity\x12\x99\x01\n" +
+	"\tencrypted\x18\x05 \x01(\bB{\x92Ax2vCreate the filesystem encrypted. Not supported by every storage backend; ignored where unsupported. Defaults to false.R\tencrypted:\f\x92A\t\n" +
 	"\a\xd2\x01\x04name\"\xc2\x01\n" +
 	"\x14GetFilesystemRequest\x12N\n" +
 	"\n" +
