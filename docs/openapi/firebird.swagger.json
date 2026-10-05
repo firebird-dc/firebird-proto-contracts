@@ -5691,7 +5691,7 @@
         },
         "encrypted": {
           "type": "boolean",
-          "description": "Create the filesystem encrypted. Weka-backed filesystems only; defaults to false."
+          "description": "Create the filesystem encrypted. Not supported by every storage backend; ignored where unsupported. Defaults to false."
         }
       },
       "required": [
