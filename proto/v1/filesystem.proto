@@ -354,6 +354,9 @@ message CreateFilesystemRequest {
   FilesystemCapacity capacity = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
     description: "Filesystem capacity. Either this or total_capacity_gb must be provided."
   }];
+  bool encrypted = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {
+    description: "Create the filesystem encrypted. Weka-backed filesystems only; defaults to false."
+  }];
 }
 
 message GetFilesystemRequest {

@@ -5688,6 +5688,10 @@
               "$ref": "#/definitions/v1FilesystemCapacity"
             }
           ]
+        },
+        "encrypted": {
+          "type": "boolean",
+          "description": "Create the filesystem encrypted. Weka-backed filesystems only; defaults to false."
         }
       },
       "required": [
