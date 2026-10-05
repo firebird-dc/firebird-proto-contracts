@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "firebird-api-client"
-version = "0.5.0"
+version = "0.5.1"
 description = "Generated Python client artifacts and handwritten helpers for the Firebird API"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -13,13 +13,19 @@ authors = [
   { name = "Firebird" }
 ]
 dependencies = [
-  "protobuf>=5,<6",
-  "grpcio>=1.60,<2",
+  "protobuf>=7.34.0,<8",
+  "grpcio>=1.78.0,<2",
   "googleapis-common-protos>=1.63"
 ]
 
 [tool.setuptools]
 include-package-data = true
+package-dir = { "" = "gen/python" }
 
+# The generated *_pb2 modules are top-level modules, not a package; setup.py
+# lists them. google.api comes from googleapis-common-protos, so the vendored
+# copy in gen/python/google is left out of the wheel.
 [tool.setuptools.packages.find]
-where = ["gen/python", "sdk/python"]
+where = ["gen/python"]
+include = ["protoc_gen_openapiv2*"]
+namespaces = true

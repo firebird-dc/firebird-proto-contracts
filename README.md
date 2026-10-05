@@ -60,10 +60,16 @@ client := v1.NewUserManagementServiceClient(conn)
 resp, err := client.Token(ctx, &v1.TokenRequest{GrantType: "client_credentials", /* … */})
 ```
 
-**Python** — install the runtime and put the generated package on `PYTHONPATH`:
+**Python** — install a tagged release with pip (pulls a compatible protobuf/grpcio runtime):
 
 ```bash
-python -m pip install "protobuf==7.34.0" "grpcio==1.78.0"
+python -m pip install "firebird-api-client @ git+https://github.com/firebird-dc/firebird-proto-contracts@v0.5.1"
+```
+
+or, from a checkout, install the runtime and put the generated modules on `PYTHONPATH`:
+
+```bash
+python -m pip install "protobuf>=7.34.0,<8" "grpcio>=1.78.0,<2" "googleapis-common-protos>=1.63"
 export PYTHONPATH="$(pwd)/gen/python"
 ```
 ```python
