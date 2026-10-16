@@ -22,7 +22,7 @@ import "network_acl.proto";  // CreateSubnetRequest.network_acl
 service VPCService {
   option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_tag) = {
     name: "Network"
-    description: "Network (VPC) API.\n\nUse this section to:\n- Create and manage VPCs within a project\n- Manage subnets under a VPC\n- Manage firewall rules for network traffic control\n\nCommon fields:\n- project_id scopes all operations\n- vpc_id scopes subnet operations\n\nNotes:\n- state reflects lifecycle (PROVISIONING/READY/ERROR/DELETING)\n\nPagination:\n- List endpoints use limit and offset"
+    description: "Network (VPC) API.\n\nUse this section to:\n- Create and manage VPCs within a project\n- Manage subnets under a VPC\n- Manage firewall rules for network traffic control\n\nCommon fields:\n- project_id scopes all operations\n- vpc_id scopes subnet operations\n\nNotes:\n- state reflects lifecycle (PROVISIONING/READY/UPDATING/ERROR/DELETING)\n\nPagination:\n- List endpoints use limit and offset"
   };
 
   // CreateVPC creates a new VPC
@@ -584,14 +584,15 @@ service VPCService {
 }
 
 // VPCLifecycleState is a message wrapper containing the lifecycle state enum for VPC, Subnet, and FirewallRule.
-// Nested in a message so enum value names (PROVISIONING, READY, ERROR, DELETING) do not conflict with FilesystemState in the same package.
+// Nested in a message so enum value names (PROVISIONING, READY, ERROR, DELETING, UPDATING) do not conflict with FilesystemState in the same package.
 message VPCLifecycleState {
   enum State {
     UNSPECIFIED = 0;
-    PROVISIONING = 1; // Resource is being created or configured by the provider
+    PROVISIONING = 1; // Resource is being created by the provider
     READY = 2;        // Resource is fully operational
     DELETING = 3;     // Resource deletion is in progress
     ERROR = 4;        // Create/update failed permanently; needs a fresh operation to recover
+    UPDATING = 5;     // An update to an existing resource is being applied by the provider (VPC and Subnet only)
   }
 }
 
@@ -605,7 +606,7 @@ message VPC {
   string project_id = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Project resource ID (format: project.ULID)"}];
   string name = 4 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Human-readable VPC name"}];
   string cidr = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "IPv4 CIDR block for this VPC"}];
-  VPCLifecycleState.State state = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Current lifecycle state (PROVISIONING, READY, ERROR, DELETING)"}];
+  VPCLifecycleState.State state = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Current lifecycle state (PROVISIONING, READY, UPDATING, ERROR, DELETING)"}];
 
   google.protobuf.Timestamp created_at = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Creation timestamp"}];
   google.protobuf.Timestamp updated_at = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Last update timestamp"}];
@@ -716,7 +717,7 @@ message Subnet {
   string name = 5 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Human-readable subnet name"}];
   string cidr = 6 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "IPv4 CIDR block (e.g. 10.0.0.0/24)"}];
   string gateway_ip = 7 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Gateway IP address (first usable IP in CIDR range, e.g. 10.0.0.1)"}];
-  VPCLifecycleState.State state = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Current lifecycle state (PROVISIONING, READY, ERROR, DELETING)"}];
+  VPCLifecycleState.State state = 8 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Current lifecycle state (PROVISIONING, READY, UPDATING, ERROR, DELETING)"}];
 
   google.protobuf.Timestamp created_at = 10 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Creation timestamp"}];
   google.protobuf.Timestamp updated_at = 11 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Last update timestamp"}];
