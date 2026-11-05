@@ -1061,8 +1061,28 @@ type MaintenanceEvent struct {
 	BypassedAt    *timestamppb.Timestamp                                  `protobuf:"bytes,21,opt,name=bypassed_at,json=bypassedAt,proto3" json:"bypassed_at,omitempty"`
 	BypassedBy    *string                                                 `protobuf:"bytes,22,opt,name=bypassed_by,json=bypassedBy,proto3,oneof" json:"bypassed_by,omitempty"`
 	TicketUrl     *string                                                 `protobuf:"bytes,23,opt,name=ticket_url,json=ticketUrl,proto3,oneof" json:"ticket_url,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Maintenance window and version-bound consent. An event with no window is
+	// a notice: nothing is scheduled and no acknowledgement deadline runs. When
+	// a window is set or moved, window_version increases and the
+	// acknowledgement returns to PENDING (updated_at changes).
+	WindowStartAt                 *timestamppb.Timestamp   `protobuf:"bytes,30,opt,name=window_start_at,json=windowStartAt,proto3" json:"window_start_at,omitempty"`
+	WindowEndAt                   *timestamppb.Timestamp   `protobuf:"bytes,31,opt,name=window_end_at,json=windowEndAt,proto3" json:"window_end_at,omitempty"`
+	WindowVersion                 int32                    `protobuf:"varint,32,opt,name=window_version,json=windowVersion,proto3" json:"window_version,omitempty"`
+	WorkScopeDigest               *string                  `protobuf:"bytes,33,opt,name=work_scope_digest,json=workScopeDigest,proto3,oneof" json:"work_scope_digest,omitempty"`
+	AckRequestedAt                *timestamppb.Timestamp   `protobuf:"bytes,34,opt,name=ack_requested_at,json=ackRequestedAt,proto3" json:"ack_requested_at,omitempty"`
+	AckWindowVersion              *int32                   `protobuf:"varint,35,opt,name=ack_window_version,json=ackWindowVersion,proto3,oneof" json:"ack_window_version,omitempty"`
+	ConsentSource                 *string                  `protobuf:"bytes,36,opt,name=consent_source,json=consentSource,proto3,oneof" json:"consent_source,omitempty"`
+	ConsentIdentity               *string                  `protobuf:"bytes,37,opt,name=consent_identity,json=consentIdentity,proto3,oneof" json:"consent_identity,omitempty"`
+	ConsentDecision               *string                  `protobuf:"bytes,38,opt,name=consent_decision,json=consentDecision,proto3,oneof" json:"consent_decision,omitempty"`
+	WorkStartedAt                 *timestamppb.Timestamp   `protobuf:"bytes,39,opt,name=work_started_at,json=workStartedAt,proto3" json:"work_started_at,omitempty"`
+	WorkGrantId                   *string                  `protobuf:"bytes,40,opt,name=work_grant_id,json=workGrantId,proto3,oneof" json:"work_grant_id,omitempty"`
+	WorkGrantState                *string                  `protobuf:"bytes,41,opt,name=work_grant_state,json=workGrantState,proto3,oneof" json:"work_grant_state,omitempty"`
+	WorkPeriods                   []*MaintenanceWorkPeriod `protobuf:"bytes,42,rep,name=work_periods,json=workPeriods,proto3" json:"work_periods,omitempty"`
+	AuthRevision                  int64                    `protobuf:"varint,43,opt,name=auth_revision,json=authRevision,proto3" json:"auth_revision,omitempty"`
+	AutoBypassCancelledForVersion *int32                   `protobuf:"varint,44,opt,name=auto_bypass_cancelled_for_version,json=autoBypassCancelledForVersion,proto3,oneof" json:"auto_bypass_cancelled_for_version,omitempty"`
+	ConsentRevision               int64                    `protobuf:"varint,45,opt,name=consent_revision,json=consentRevision,proto3" json:"consent_revision,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *MaintenanceEvent) Reset() {
@@ -1256,6 +1276,186 @@ func (x *MaintenanceEvent) GetTicketUrl() string {
 	return ""
 }
 
+func (x *MaintenanceEvent) GetWindowStartAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.WindowStartAt
+	}
+	return nil
+}
+
+func (x *MaintenanceEvent) GetWindowEndAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.WindowEndAt
+	}
+	return nil
+}
+
+func (x *MaintenanceEvent) GetWindowVersion() int32 {
+	if x != nil {
+		return x.WindowVersion
+	}
+	return 0
+}
+
+func (x *MaintenanceEvent) GetWorkScopeDigest() string {
+	if x != nil && x.WorkScopeDigest != nil {
+		return *x.WorkScopeDigest
+	}
+	return ""
+}
+
+func (x *MaintenanceEvent) GetAckRequestedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AckRequestedAt
+	}
+	return nil
+}
+
+func (x *MaintenanceEvent) GetAckWindowVersion() int32 {
+	if x != nil && x.AckWindowVersion != nil {
+		return *x.AckWindowVersion
+	}
+	return 0
+}
+
+func (x *MaintenanceEvent) GetConsentSource() string {
+	if x != nil && x.ConsentSource != nil {
+		return *x.ConsentSource
+	}
+	return ""
+}
+
+func (x *MaintenanceEvent) GetConsentIdentity() string {
+	if x != nil && x.ConsentIdentity != nil {
+		return *x.ConsentIdentity
+	}
+	return ""
+}
+
+func (x *MaintenanceEvent) GetConsentDecision() string {
+	if x != nil && x.ConsentDecision != nil {
+		return *x.ConsentDecision
+	}
+	return ""
+}
+
+func (x *MaintenanceEvent) GetWorkStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.WorkStartedAt
+	}
+	return nil
+}
+
+func (x *MaintenanceEvent) GetWorkGrantId() string {
+	if x != nil && x.WorkGrantId != nil {
+		return *x.WorkGrantId
+	}
+	return ""
+}
+
+func (x *MaintenanceEvent) GetWorkGrantState() string {
+	if x != nil && x.WorkGrantState != nil {
+		return *x.WorkGrantState
+	}
+	return ""
+}
+
+func (x *MaintenanceEvent) GetWorkPeriods() []*MaintenanceWorkPeriod {
+	if x != nil {
+		return x.WorkPeriods
+	}
+	return nil
+}
+
+func (x *MaintenanceEvent) GetAuthRevision() int64 {
+	if x != nil {
+		return x.AuthRevision
+	}
+	return 0
+}
+
+func (x *MaintenanceEvent) GetAutoBypassCancelledForVersion() int32 {
+	if x != nil && x.AutoBypassCancelledForVersion != nil {
+		return *x.AutoBypassCancelledForVersion
+	}
+	return 0
+}
+
+func (x *MaintenanceEvent) GetConsentRevision() int64 {
+	if x != nil {
+		return x.ConsentRevision
+	}
+	return 0
+}
+
+type MaintenanceWorkPeriod struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	StartedAt     *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	EndedAt       *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=ended_at,json=endedAt,proto3" json:"ended_at,omitempty"`
+	Outcome       string                 `protobuf:"bytes,3,opt,name=outcome,proto3" json:"outcome,omitempty"`
+	GrantId       string                 `protobuf:"bytes,4,opt,name=grant_id,json=grantId,proto3" json:"grant_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MaintenanceWorkPeriod) Reset() {
+	*x = MaintenanceWorkPeriod{}
+	mi := &file_maintenance_event_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MaintenanceWorkPeriod) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MaintenanceWorkPeriod) ProtoMessage() {}
+
+func (x *MaintenanceWorkPeriod) ProtoReflect() protoreflect.Message {
+	mi := &file_maintenance_event_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MaintenanceWorkPeriod.ProtoReflect.Descriptor instead.
+func (*MaintenanceWorkPeriod) Descriptor() ([]byte, []int) {
+	return file_maintenance_event_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *MaintenanceWorkPeriod) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *MaintenanceWorkPeriod) GetEndedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndedAt
+	}
+	return nil
+}
+
+func (x *MaintenanceWorkPeriod) GetOutcome() string {
+	if x != nil {
+		return x.Outcome
+	}
+	return ""
+}
+
+func (x *MaintenanceWorkPeriod) GetGrantId() string {
+	if x != nil {
+		return x.GrantId
+	}
+	return ""
+}
+
 type ListMaintenanceEventsRequest struct {
 	state         protoimpl.MessageState                                                 `protogen:"open.v1"`
 	PageSize      *int32                                                                 `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3,oneof" json:"page_size,omitempty"`
@@ -1269,7 +1469,7 @@ type ListMaintenanceEventsRequest struct {
 
 func (x *ListMaintenanceEventsRequest) Reset() {
 	*x = ListMaintenanceEventsRequest{}
-	mi := &file_maintenance_event_proto_msgTypes[13]
+	mi := &file_maintenance_event_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1281,7 +1481,7 @@ func (x *ListMaintenanceEventsRequest) String() string {
 func (*ListMaintenanceEventsRequest) ProtoMessage() {}
 
 func (x *ListMaintenanceEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintenance_event_proto_msgTypes[13]
+	mi := &file_maintenance_event_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1294,7 +1494,7 @@ func (x *ListMaintenanceEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMaintenanceEventsRequest.ProtoReflect.Descriptor instead.
 func (*ListMaintenanceEventsRequest) Descriptor() ([]byte, []int) {
-	return file_maintenance_event_proto_rawDescGZIP(), []int{13}
+	return file_maintenance_event_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListMaintenanceEventsRequest) GetPageSize() int32 {
@@ -1343,7 +1543,7 @@ type ListMaintenanceEventsResponse struct {
 
 func (x *ListMaintenanceEventsResponse) Reset() {
 	*x = ListMaintenanceEventsResponse{}
-	mi := &file_maintenance_event_proto_msgTypes[14]
+	mi := &file_maintenance_event_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1355,7 +1555,7 @@ func (x *ListMaintenanceEventsResponse) String() string {
 func (*ListMaintenanceEventsResponse) ProtoMessage() {}
 
 func (x *ListMaintenanceEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintenance_event_proto_msgTypes[14]
+	mi := &file_maintenance_event_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1368,7 +1568,7 @@ func (x *ListMaintenanceEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMaintenanceEventsResponse.ProtoReflect.Descriptor instead.
 func (*ListMaintenanceEventsResponse) Descriptor() ([]byte, []int) {
-	return file_maintenance_event_proto_rawDescGZIP(), []int{14}
+	return file_maintenance_event_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListMaintenanceEventsResponse) GetItems() []*MaintenanceEvent {
@@ -1403,7 +1603,7 @@ type GetMaintenanceEventRequest struct {
 
 func (x *GetMaintenanceEventRequest) Reset() {
 	*x = GetMaintenanceEventRequest{}
-	mi := &file_maintenance_event_proto_msgTypes[15]
+	mi := &file_maintenance_event_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1415,7 +1615,7 @@ func (x *GetMaintenanceEventRequest) String() string {
 func (*GetMaintenanceEventRequest) ProtoMessage() {}
 
 func (x *GetMaintenanceEventRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintenance_event_proto_msgTypes[15]
+	mi := &file_maintenance_event_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1428,7 +1628,7 @@ func (x *GetMaintenanceEventRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMaintenanceEventRequest.ProtoReflect.Descriptor instead.
 func (*GetMaintenanceEventRequest) Descriptor() ([]byte, []int) {
-	return file_maintenance_event_proto_rawDescGZIP(), []int{15}
+	return file_maintenance_event_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetMaintenanceEventRequest) GetEventId() string {
@@ -1462,7 +1662,7 @@ type GetMaintenanceEventResponse struct {
 
 func (x *GetMaintenanceEventResponse) Reset() {
 	*x = GetMaintenanceEventResponse{}
-	mi := &file_maintenance_event_proto_msgTypes[16]
+	mi := &file_maintenance_event_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1474,7 +1674,7 @@ func (x *GetMaintenanceEventResponse) String() string {
 func (*GetMaintenanceEventResponse) ProtoMessage() {}
 
 func (x *GetMaintenanceEventResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintenance_event_proto_msgTypes[16]
+	mi := &file_maintenance_event_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1487,7 +1687,7 @@ func (x *GetMaintenanceEventResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMaintenanceEventResponse.ProtoReflect.Descriptor instead.
 func (*GetMaintenanceEventResponse) Descriptor() ([]byte, []int) {
-	return file_maintenance_event_proto_rawDescGZIP(), []int{16}
+	return file_maintenance_event_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetMaintenanceEventResponse) GetEvent() *MaintenanceEvent {
@@ -1514,7 +1714,7 @@ type AddMaintenanceEventCommentRequest struct {
 
 func (x *AddMaintenanceEventCommentRequest) Reset() {
 	*x = AddMaintenanceEventCommentRequest{}
-	mi := &file_maintenance_event_proto_msgTypes[17]
+	mi := &file_maintenance_event_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1526,7 +1726,7 @@ func (x *AddMaintenanceEventCommentRequest) String() string {
 func (*AddMaintenanceEventCommentRequest) ProtoMessage() {}
 
 func (x *AddMaintenanceEventCommentRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintenance_event_proto_msgTypes[17]
+	mi := &file_maintenance_event_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1539,7 +1739,7 @@ func (x *AddMaintenanceEventCommentRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use AddMaintenanceEventCommentRequest.ProtoReflect.Descriptor instead.
 func (*AddMaintenanceEventCommentRequest) Descriptor() ([]byte, []int) {
-	return file_maintenance_event_proto_rawDescGZIP(), []int{17}
+	return file_maintenance_event_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *AddMaintenanceEventCommentRequest) GetEventId() string {
@@ -1566,7 +1766,7 @@ type MaintenanceEventCommentResponse struct {
 
 func (x *MaintenanceEventCommentResponse) Reset() {
 	*x = MaintenanceEventCommentResponse{}
-	mi := &file_maintenance_event_proto_msgTypes[18]
+	mi := &file_maintenance_event_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1578,7 +1778,7 @@ func (x *MaintenanceEventCommentResponse) String() string {
 func (*MaintenanceEventCommentResponse) ProtoMessage() {}
 
 func (x *MaintenanceEventCommentResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintenance_event_proto_msgTypes[18]
+	mi := &file_maintenance_event_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1591,7 +1791,7 @@ func (x *MaintenanceEventCommentResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MaintenanceEventCommentResponse.ProtoReflect.Descriptor instead.
 func (*MaintenanceEventCommentResponse) Descriptor() ([]byte, []int) {
-	return file_maintenance_event_proto_rawDescGZIP(), []int{18}
+	return file_maintenance_event_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *MaintenanceEventCommentResponse) GetEvent() *MaintenanceEvent {
@@ -1620,7 +1820,7 @@ type CreateMaintenanceEventForInstanceRequest struct {
 
 func (x *CreateMaintenanceEventForInstanceRequest) Reset() {
 	*x = CreateMaintenanceEventForInstanceRequest{}
-	mi := &file_maintenance_event_proto_msgTypes[19]
+	mi := &file_maintenance_event_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1632,7 +1832,7 @@ func (x *CreateMaintenanceEventForInstanceRequest) String() string {
 func (*CreateMaintenanceEventForInstanceRequest) ProtoMessage() {}
 
 func (x *CreateMaintenanceEventForInstanceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintenance_event_proto_msgTypes[19]
+	mi := &file_maintenance_event_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1645,7 +1845,7 @@ func (x *CreateMaintenanceEventForInstanceRequest) ProtoReflect() protoreflect.M
 
 // Deprecated: Use CreateMaintenanceEventForInstanceRequest.ProtoReflect.Descriptor instead.
 func (*CreateMaintenanceEventForInstanceRequest) Descriptor() ([]byte, []int) {
-	return file_maintenance_event_proto_rawDescGZIP(), []int{19}
+	return file_maintenance_event_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CreateMaintenanceEventForInstanceRequest) GetBmId() string {
@@ -1679,13 +1879,14 @@ func (x *CreateMaintenanceEventForInstanceRequest) GetComment() string {
 type AckMaintenanceEventRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	WindowVersion *int32                 `protobuf:"varint,2,opt,name=window_version,json=windowVersion,proto3,oneof" json:"window_version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AckMaintenanceEventRequest) Reset() {
 	*x = AckMaintenanceEventRequest{}
-	mi := &file_maintenance_event_proto_msgTypes[20]
+	mi := &file_maintenance_event_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1697,7 +1898,7 @@ func (x *AckMaintenanceEventRequest) String() string {
 func (*AckMaintenanceEventRequest) ProtoMessage() {}
 
 func (x *AckMaintenanceEventRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintenance_event_proto_msgTypes[20]
+	mi := &file_maintenance_event_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1710,7 +1911,7 @@ func (x *AckMaintenanceEventRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AckMaintenanceEventRequest.ProtoReflect.Descriptor instead.
 func (*AckMaintenanceEventRequest) Descriptor() ([]byte, []int) {
-	return file_maintenance_event_proto_rawDescGZIP(), []int{20}
+	return file_maintenance_event_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *AckMaintenanceEventRequest) GetEventId() string {
@@ -1720,6 +1921,69 @@ func (x *AckMaintenanceEventRequest) GetEventId() string {
 	return ""
 }
 
+func (x *AckMaintenanceEventRequest) GetWindowVersion() int32 {
+	if x != nil && x.WindowVersion != nil {
+		return *x.WindowVersion
+	}
+	return 0
+}
+
+type WithdrawMaintenanceEventAckRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EventId       string                 `protobuf:"bytes,1,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
+	WindowVersion int32                  `protobuf:"varint,2,opt,name=window_version,json=windowVersion,proto3" json:"window_version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *WithdrawMaintenanceEventAckRequest) Reset() {
+	*x = WithdrawMaintenanceEventAckRequest{}
+	mi := &file_maintenance_event_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *WithdrawMaintenanceEventAckRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*WithdrawMaintenanceEventAckRequest) ProtoMessage() {}
+
+func (x *WithdrawMaintenanceEventAckRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_maintenance_event_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use WithdrawMaintenanceEventAckRequest.ProtoReflect.Descriptor instead.
+func (*WithdrawMaintenanceEventAckRequest) Descriptor() ([]byte, []int) {
+	return file_maintenance_event_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *WithdrawMaintenanceEventAckRequest) GetEventId() string {
+	if x != nil {
+		return x.EventId
+	}
+	return ""
+}
+
+func (x *WithdrawMaintenanceEventAckRequest) GetWindowVersion() int32 {
+	if x != nil {
+		return x.WindowVersion
+	}
+	return 0
+}
+
+// Acknowledges the PENDING events of one BM. With windowed consent enabled
+// only notices (events without a maintenance window) are acknowledged in
+// bulk; windowed events must be acknowledged individually with their
+// window_version.
 type AckMaintenanceEventsForInstanceRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	BmId          string                 `protobuf:"bytes,1,opt,name=bm_id,json=bmId,proto3" json:"bm_id,omitempty"`
@@ -1729,7 +1993,7 @@ type AckMaintenanceEventsForInstanceRequest struct {
 
 func (x *AckMaintenanceEventsForInstanceRequest) Reset() {
 	*x = AckMaintenanceEventsForInstanceRequest{}
-	mi := &file_maintenance_event_proto_msgTypes[21]
+	mi := &file_maintenance_event_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1741,7 +2005,7 @@ func (x *AckMaintenanceEventsForInstanceRequest) String() string {
 func (*AckMaintenanceEventsForInstanceRequest) ProtoMessage() {}
 
 func (x *AckMaintenanceEventsForInstanceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_maintenance_event_proto_msgTypes[21]
+	mi := &file_maintenance_event_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1754,7 +2018,7 @@ func (x *AckMaintenanceEventsForInstanceRequest) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use AckMaintenanceEventsForInstanceRequest.ProtoReflect.Descriptor instead.
 func (*AckMaintenanceEventsForInstanceRequest) Descriptor() ([]byte, []int) {
-	return file_maintenance_event_proto_rawDescGZIP(), []int{21}
+	return file_maintenance_event_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *AckMaintenanceEventsForInstanceRequest) GetBmId() string {
@@ -1773,7 +2037,7 @@ type MaintenanceEventResponse struct {
 
 func (x *MaintenanceEventResponse) Reset() {
 	*x = MaintenanceEventResponse{}
-	mi := &file_maintenance_event_proto_msgTypes[22]
+	mi := &file_maintenance_event_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1785,7 +2049,7 @@ func (x *MaintenanceEventResponse) String() string {
 func (*MaintenanceEventResponse) ProtoMessage() {}
 
 func (x *MaintenanceEventResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_maintenance_event_proto_msgTypes[22]
+	mi := &file_maintenance_event_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1798,7 +2062,7 @@ func (x *MaintenanceEventResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MaintenanceEventResponse.ProtoReflect.Descriptor instead.
 func (*MaintenanceEventResponse) Descriptor() ([]byte, []int) {
-	return file_maintenance_event_proto_rawDescGZIP(), []int{22}
+	return file_maintenance_event_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *MaintenanceEventResponse) GetEvent() *MaintenanceEvent {
@@ -1895,7 +2159,7 @@ const file_maintenance_event_proto_rawDesc = "" +
 	"created_at\"\xa6\x02\n" +
 	"\x1cMaintenanceEventConversation\x12|\n" +
 	"\x05items\x18\x01 \x03(\v2(.firebird.api.v1.MaintenanceEventCommentB<\x92A927One page of conversation entries in chronological orderR\x05items\x12\x87\x01\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tB_\x92A\\2ZToken retrieving OLDER entries; empty when the page contains the start of the conversationR\rnextPageToken\"\xcb\x16\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB_\x92A\\2ZToken retrieving OLDER entries; empty when the page contains the start of the conversationR\rnextPageToken\"\x95)\n" +
 	"\x10MaintenanceEvent\x12S\n" +
 	"\x02id\x18\x01 \x01(\tBC\x92A@2>Maintenance event resource ID (format: maintenance-event.ULID)R\x02id\x12J\n" +
 	"\ttenant_id\x18\x02 \x01(\tB-\x92A*2(Tenant resource ID (format: tenant.ULID)R\btenantId\x12I\n" +
@@ -1930,7 +2194,24 @@ const file_maintenance_event_proto_rawDesc = "" +
 	"\vbypassed_by\x18\x16 \x01(\tBh\x92Ae2cThe human operator who authorized the bypass (email or operator id); unset for deadline auto-bypassH\x06R\n" +
 	"bypassedBy\x88\x01\x01\x12\xc7\x01\n" +
 	"\n" +
-	"ticket_url\x18\x17 \x01(\tB\xa2\x01\x92A\x9e\x012\x9b\x01Tenant-trackable public URL of the operator ticket backing this event (https://<origin>/share/tickets/<token>); unset when the provider did not publish oneH\aR\tticketUrl\x88\x01\x01:A\x92A>\n" +
+	"ticket_url\x18\x17 \x01(\tB\xa2\x01\x92A\x9e\x012\x9b\x01Tenant-trackable public URL of the operator ticket backing this event (https://<origin>/share/tickets/<token>); unset when the provider did not publish oneH\aR\tticketUrl\x88\x01\x01\x12\x85\x01\n" +
+	"\x0fwindow_start_at\x18\x1e \x01(\v2\x1a.google.protobuf.TimestampBA\x92A>2<Start of the requested maintenance window; unset on a noticeR\rwindowStartAt\x12\x8b\x01\n" +
+	"\rwindow_end_at\x18\x1f \x01(\v2\x1a.google.protobuf.TimestampBK\x92AH2FEnd (exclusive) of the requested maintenance window; unset on a noticeR\vwindowEndAt\x12\xd8\x01\n" +
+	"\x0ewindow_version\x18  \x01(\x05B\xb0\x01\x92A\xac\x012\xa9\x01Version of the maintenance window: 0 = no window was ever requested; increases on every window change and is never reset. Acknowledge a windowed event with this version.R\rwindowVersion\x12p\n" +
+	"\x11work_scope_digest\x18! \x01(\tB?\x92A<2:Opaque digest of the provider's work scope for this windowH\bR\x0fworkScopeDigest\x88\x01\x01\x12\x8c\x01\n" +
+	"\x10ack_requested_at\x18\" \x01(\v2\x1a.google.protobuf.TimestampBF\x92AC2AWhen the provider requested acknowledgement of the current windowR\x0eackRequestedAt\x12r\n" +
+	"\x12ack_window_version\x18# \x01(\x05B?\x92A<2:Window version the current ACKED/BYPASSED state applies toH\tR\x10ackWindowVersion\x88\x01\x01\x12\x9c\x01\n" +
+	"\x0econsent_source\x18$ \x01(\tBp\x92Am2kHow consent was recorded: TENANT_API, TENANT_BMAAS, OUT_OF_BAND, DEADLINE or EMERGENCY; unset while PENDINGH\n" +
+	"R\rconsentSource\x88\x01\x01\x12U\n" +
+	"\x10consent_identity\x18% \x01(\tB%\x92A\"2 Who gave or recorded the consentH\vR\x0fconsentIdentity\x88\x01\x01\x12h\n" +
+	"\x10consent_decision\x18& \x01(\tB8\x92A523ACCEPTED or DECLINED for the current window versionH\fR\x0fconsentDecision\x88\x01\x01\x12\x83\x01\n" +
+	"\x0fwork_started_at\x18' \x01(\v2\x1a.google.protobuf.TimestampB?\x92A<2:When provider work under the current or last grant startedR\rworkStartedAt\x12U\n" +
+	"\rwork_grant_id\x18( \x01(\tB,\x92A)2'Provider work grant covering this eventH\rR\vworkGrantId\x88\x01\x01\x12P\n" +
+	"\x10work_grant_state\x18) \x01(\tB!\x92A\x1e2\x1cprovisional, active or endedH\x0eR\x0eworkGrantState\x88\x01\x01\x12y\n" +
+	"\fwork_periods\x18* \x03(\v2&.firebird.api.v1.MaintenanceWorkPeriodB.\x92A+2)Ended provider work periods on this eventR\vworkPeriods\x12\x82\x01\n" +
+	"\rauth_revision\x18+ \x01(\x03B]\x92AZ2XIncreases on every consent, window, ownership or grant change; compare for equality onlyR\fauthRevision\x12\xc6\x01\n" +
+	"!auto_bypass_cancelled_for_version\x18, \x01(\x05Bw\x92At2rWindow version whose automatic proceed at the deadline was cancelled (withdrawal, decline or revoked auto-proceed)H\x0fR\x1dautoBypassCancelledForVersion\x88\x01\x01\x12\xd2\x01\n" +
+	"\x10consent_revision\x18- \x01(\x03B\xa6\x01\x92A\xa2\x012\x9f\x01Increases on every consent change (acknowledgement, withdrawal, decision, deadline proceed, emergency bypass, window set or cleared); compare for equality onlyR\x0fconsentRevision:A\x92A>\n" +
 	"<\xd2\x01\x02id\xd2\x01\ttenant_id\xd2\x01\x05bm_id\xd2\x01\x06status\xd2\x01\n" +
 	"created_at\xd2\x01\n" +
 	"updated_atB\a\n" +
@@ -1942,7 +2223,21 @@ const file_maintenance_event_proto_rawDesc = "" +
 	"\f_reported_byB\x10\n" +
 	"\x0e_bypass_reasonB\x0e\n" +
 	"\f_bypassed_byB\r\n" +
-	"\v_ticket_url\"\xe9\x04\n" +
+	"\v_ticket_urlB\x14\n" +
+	"\x12_work_scope_digestB\x15\n" +
+	"\x13_ack_window_versionB\x11\n" +
+	"\x0f_consent_sourceB\x13\n" +
+	"\x11_consent_identityB\x13\n" +
+	"\x11_consent_decisionB\x10\n" +
+	"\x0e_work_grant_idB\x13\n" +
+	"\x11_work_grant_stateB$\n" +
+	"\"_auto_bypass_cancelled_for_version\"\xe5\x01\n" +
+	"\x15MaintenanceWorkPeriod\x129\n" +
+	"\n" +
+	"started_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x125\n" +
+	"\bended_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\aendedAt\x12?\n" +
+	"\aoutcome\x18\x03 \x01(\tB%\x92A\"2 done, paused, aborted or expiredR\aoutcome\x12\x19\n" +
+	"\bgrant_id\x18\x04 \x01(\tR\agrantId\"\xe9\x04\n" +
 	"\x1cListMaintenanceEventsRequest\x12 \n" +
 	"\tpage_size\x18\x01 \x01(\x05H\x00R\bpageSize\x88\x01\x01\x12\"\n" +
 	"\n" +
@@ -1988,15 +2283,21 @@ const file_maintenance_event_proto_rawDesc = "" +
 	"\x1a\xd2\x01\x05bm_id\xd2\x01\x04code\xd2\x01\bseverityB\a\n" +
 	"\x05_codeB\n" +
 	"\n" +
-	"\b_comment\"|\n" +
+	"\b_comment\"\xc0\x02\n" +
 	"\x1aAckMaintenanceEventRequest\x12^\n" +
-	"\bevent_id\x18\x01 \x01(\tBC\x92A@2>Maintenance event resource ID (format: maintenance-event.ULID)R\aeventId\"=\n" +
+	"\bevent_id\x18\x01 \x01(\tBC\x92A@2>Maintenance event resource ID (format: maintenance-event.ULID)R\aeventId\x12\xae\x01\n" +
+	"\x0ewindow_version\x18\x02 \x01(\x05B\x81\x01\x92A~2|Window version being acknowledged. Required when the event has a maintenance window; may be omitted on a notice (no window).H\x00R\rwindowVersion\x88\x01\x01B\x11\n" +
+	"\x0f_window_version\"\x86\x02\n" +
+	"\"WithdrawMaintenanceEventAckRequest\x12^\n" +
+	"\bevent_id\x18\x01 \x01(\tBC\x92A@2>Maintenance event resource ID (format: maintenance-event.ULID)R\aeventId\x12]\n" +
+	"\x0ewindow_version\x18\x02 \x01(\x05B6\x92A321Window version whose acknowledgement is withdrawnR\rwindowVersion:!\x92A\x1e\n" +
+	"\x1c\xd2\x01\bevent_id\xd2\x01\x0ewindow_version\"=\n" +
 	"&AckMaintenanceEventsForInstanceRequest\x12\x13\n" +
 	"\x05bm_id\x18\x01 \x01(\tR\x04bmId\"b\n" +
 	"\x18MaintenanceEventResponse\x127\n" +
 	"\x05event\x18\x01 \x01(\v2!.firebird.api.v1.MaintenanceEventR\x05event:\r\x92A\n" +
 	"\n" +
-	"\b\xd2\x01\x05event2\xd4\x0f\n" +
+	"\b\xd2\x01\x05event2\xa2\x12\n" +
 	"\x17MaintenanceEventService\x12\x8d\x02\n" +
 	"\x15ListMaintenanceEvents\x12-.firebird.api.v1.ListMaintenanceEventsRequest\x1a..firebird.api.v1.ListMaintenanceEventsResponse\"\x94\x01\x92Av\n" +
 	"\bBreakfix\x12\x17List maintenance eventsJ?\n" +
@@ -2031,15 +2332,23 @@ const file_maintenance_event_proto_rawDesc = "" +
 	"+\x1a).firebird.api.v1.MaintenanceEventResponseb\x10\n" +
 	"\x0e\n" +
 	"\n" +
-	"BearerAuth\x12\x00\x82\xd3\xe4\x93\x02\x18:\x01*\"\x13/maintenance-events\x12\xa1\x02\n" +
-	"\x13AckMaintenanceEvent\x12+.firebird.api.v1.AckMaintenanceEventRequest\x1a).firebird.api.v1.MaintenanceEventResponse\"\xb1\x01\x92A\x83\x01\n" +
+	"BearerAuth\x12\x00\x82\xd3\xe4\x93\x02\x18:\x01*\"\x13/maintenance-events\x12\xa4\x02\n" +
+	"\x13AckMaintenanceEvent\x12+.firebird.api.v1.AckMaintenanceEventRequest\x1a).firebird.api.v1.MaintenanceEventResponse\"\xb4\x01\x92A\x83\x01\n" +
 	"\bBreakfix\x12)Acknowledge maintenance event by event IDJ:\n" +
 	"\x03200\x123\n" +
 	"\x02OK\x12-\n" +
 	"+\x1a).firebird.api.v1.MaintenanceEventResponseb\x10\n" +
 	"\x0e\n" +
 	"\n" +
-	"BearerAuth\x12\x00\x82\xd3\xe4\x93\x02$\"\"/maintenance-events/{event_id}/ack\x12\xb5\x02\n" +
+	"BearerAuth\x12\x00\x82\xd3\xe4\x93\x02':\x01*\"\"/maintenance-events/{event_id}/ack\x12\xc8\x02\n" +
+	"\x1bWithdrawMaintenanceEventAck\x123.firebird.api.v1.WithdrawMaintenanceEventAckRequest\x1a).firebird.api.v1.MaintenanceEventResponse\"\xc8\x01\x92A\x8e\x01\n" +
+	"\bBreakfix\x124Withdraw the acknowledgement of a maintenance windowJ:\n" +
+	"\x03200\x123\n" +
+	"\x02OK\x12-\n" +
+	"+\x1a).firebird.api.v1.MaintenanceEventResponseb\x10\n" +
+	"\x0e\n" +
+	"\n" +
+	"BearerAuth\x12\x00\x82\xd3\xe4\x93\x020:\x01*\"+/maintenance-events/{event_id}/withdraw-ack\x12\xb5\x02\n" +
 	"\x1fAckMaintenanceEventsForInstance\x127.firebird.api.v1.AckMaintenanceEventsForInstanceRequest\x1a).firebird.api.v1.MaintenanceEventResponse\"\xad\x01\x92A\x87\x01\n" +
 	"\bBreakfix\x12-Acknowledge pending maintenance events for BMJ:\n" +
 	"\x03200\x123\n" +
@@ -2063,7 +2372,7 @@ func file_maintenance_event_proto_rawDescGZIP() []byte {
 }
 
 var file_maintenance_event_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
-var file_maintenance_event_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_maintenance_event_proto_msgTypes = make([]protoimpl.MessageInfo, 25)
 var file_maintenance_event_proto_goTypes = []any{
 	(MaintenanceEventCreatedByEnum_MaintenanceEventCreatedBy)(0),                 // 0: firebird.api.v1.MaintenanceEventCreatedByEnum.MaintenanceEventCreatedBy
 	(MaintenanceEventPriorityEnum_MaintenanceEventPriority)(0),                   // 1: firebird.api.v1.MaintenanceEventPriorityEnum.MaintenanceEventPriority
@@ -2087,23 +2396,25 @@ var file_maintenance_event_proto_goTypes = []any{
 	(*MaintenanceEventComment)(nil),                                              // 19: firebird.api.v1.MaintenanceEventComment
 	(*MaintenanceEventConversation)(nil),                                         // 20: firebird.api.v1.MaintenanceEventConversation
 	(*MaintenanceEvent)(nil),                                                     // 21: firebird.api.v1.MaintenanceEvent
-	(*ListMaintenanceEventsRequest)(nil),                                         // 22: firebird.api.v1.ListMaintenanceEventsRequest
-	(*ListMaintenanceEventsResponse)(nil),                                        // 23: firebird.api.v1.ListMaintenanceEventsResponse
-	(*GetMaintenanceEventRequest)(nil),                                           // 24: firebird.api.v1.GetMaintenanceEventRequest
-	(*GetMaintenanceEventResponse)(nil),                                          // 25: firebird.api.v1.GetMaintenanceEventResponse
-	(*AddMaintenanceEventCommentRequest)(nil),                                    // 26: firebird.api.v1.AddMaintenanceEventCommentRequest
-	(*MaintenanceEventCommentResponse)(nil),                                      // 27: firebird.api.v1.MaintenanceEventCommentResponse
-	(*CreateMaintenanceEventForInstanceRequest)(nil),                             // 28: firebird.api.v1.CreateMaintenanceEventForInstanceRequest
-	(*AckMaintenanceEventRequest)(nil),                                           // 29: firebird.api.v1.AckMaintenanceEventRequest
-	(*AckMaintenanceEventsForInstanceRequest)(nil),                               // 30: firebird.api.v1.AckMaintenanceEventsForInstanceRequest
-	(*MaintenanceEventResponse)(nil),                                             // 31: firebird.api.v1.MaintenanceEventResponse
-	(*timestamppb.Timestamp)(nil),                                                // 32: google.protobuf.Timestamp
+	(*MaintenanceWorkPeriod)(nil),                                                // 22: firebird.api.v1.MaintenanceWorkPeriod
+	(*ListMaintenanceEventsRequest)(nil),                                         // 23: firebird.api.v1.ListMaintenanceEventsRequest
+	(*ListMaintenanceEventsResponse)(nil),                                        // 24: firebird.api.v1.ListMaintenanceEventsResponse
+	(*GetMaintenanceEventRequest)(nil),                                           // 25: firebird.api.v1.GetMaintenanceEventRequest
+	(*GetMaintenanceEventResponse)(nil),                                          // 26: firebird.api.v1.GetMaintenanceEventResponse
+	(*AddMaintenanceEventCommentRequest)(nil),                                    // 27: firebird.api.v1.AddMaintenanceEventCommentRequest
+	(*MaintenanceEventCommentResponse)(nil),                                      // 28: firebird.api.v1.MaintenanceEventCommentResponse
+	(*CreateMaintenanceEventForInstanceRequest)(nil),                             // 29: firebird.api.v1.CreateMaintenanceEventForInstanceRequest
+	(*AckMaintenanceEventRequest)(nil),                                           // 30: firebird.api.v1.AckMaintenanceEventRequest
+	(*WithdrawMaintenanceEventAckRequest)(nil),                                   // 31: firebird.api.v1.WithdrawMaintenanceEventAckRequest
+	(*AckMaintenanceEventsForInstanceRequest)(nil),                               // 32: firebird.api.v1.AckMaintenanceEventsForInstanceRequest
+	(*MaintenanceEventResponse)(nil),                                             // 33: firebird.api.v1.MaintenanceEventResponse
+	(*timestamppb.Timestamp)(nil),                                                // 34: google.protobuf.Timestamp
 }
 var file_maintenance_event_proto_depIdxs = []int32{
 	7,  // 0: firebird.api.v1.MaintenanceEventCommentAuthor.type:type_name -> firebird.api.v1.MaintenanceEventCommentAuthorTypeEnum.MaintenanceEventCommentAuthorType
 	18, // 1: firebird.api.v1.MaintenanceEventComment.author:type_name -> firebird.api.v1.MaintenanceEventCommentAuthor
 	8,  // 2: firebird.api.v1.MaintenanceEventComment.kind:type_name -> firebird.api.v1.MaintenanceEventCommentKindEnum.MaintenanceEventCommentKind
-	32, // 3: firebird.api.v1.MaintenanceEventComment.created_at:type_name -> google.protobuf.Timestamp
+	34, // 3: firebird.api.v1.MaintenanceEventComment.created_at:type_name -> google.protobuf.Timestamp
 	19, // 4: firebird.api.v1.MaintenanceEventConversation.items:type_name -> firebird.api.v1.MaintenanceEventComment
 	0,  // 5: firebird.api.v1.MaintenanceEvent.created_by:type_name -> firebird.api.v1.MaintenanceEventCreatedByEnum.MaintenanceEventCreatedBy
 	1,  // 6: firebird.api.v1.MaintenanceEvent.priority:type_name -> firebird.api.v1.MaintenanceEventPriorityEnum.MaintenanceEventPriority
@@ -2111,38 +2422,47 @@ var file_maintenance_event_proto_depIdxs = []int32{
 	3,  // 8: firebird.api.v1.MaintenanceEvent.status:type_name -> firebird.api.v1.MaintenanceEventStatusEnum.MaintenanceEventStatus
 	5,  // 9: firebird.api.v1.MaintenanceEvent.ack_policy:type_name -> firebird.api.v1.MaintenanceEventAckPolicyEnum.MaintenanceEventAckPolicy
 	4,  // 10: firebird.api.v1.MaintenanceEvent.ack_status:type_name -> firebird.api.v1.MaintenanceEventAckStatusEnum.MaintenanceEventAckStatus
-	32, // 11: firebird.api.v1.MaintenanceEvent.ack_deadline_at:type_name -> google.protobuf.Timestamp
-	32, // 12: firebird.api.v1.MaintenanceEvent.acked_at:type_name -> google.protobuf.Timestamp
-	32, // 13: firebird.api.v1.MaintenanceEvent.created_at:type_name -> google.protobuf.Timestamp
-	32, // 14: firebird.api.v1.MaintenanceEvent.updated_at:type_name -> google.protobuf.Timestamp
-	32, // 15: firebird.api.v1.MaintenanceEvent.cleared_at:type_name -> google.protobuf.Timestamp
-	32, // 16: firebird.api.v1.MaintenanceEvent.bypassed_at:type_name -> google.protobuf.Timestamp
-	6,  // 17: firebird.api.v1.ListMaintenanceEventsRequest.status:type_name -> firebird.api.v1.MaintenanceEventListStatusFilterEnum.MaintenanceEventListStatusFilter
-	32, // 18: firebird.api.v1.ListMaintenanceEventsRequest.updated_since:type_name -> google.protobuf.Timestamp
-	21, // 19: firebird.api.v1.ListMaintenanceEventsResponse.items:type_name -> firebird.api.v1.MaintenanceEvent
-	21, // 20: firebird.api.v1.GetMaintenanceEventResponse.event:type_name -> firebird.api.v1.MaintenanceEvent
-	20, // 21: firebird.api.v1.GetMaintenanceEventResponse.conversation:type_name -> firebird.api.v1.MaintenanceEventConversation
-	21, // 22: firebird.api.v1.MaintenanceEventCommentResponse.event:type_name -> firebird.api.v1.MaintenanceEvent
-	19, // 23: firebird.api.v1.MaintenanceEventCommentResponse.comment:type_name -> firebird.api.v1.MaintenanceEventComment
-	2,  // 24: firebird.api.v1.CreateMaintenanceEventForInstanceRequest.severity:type_name -> firebird.api.v1.MaintenanceEventSeverityEnum.MaintenanceEventSeverity
-	21, // 25: firebird.api.v1.MaintenanceEventResponse.event:type_name -> firebird.api.v1.MaintenanceEvent
-	22, // 26: firebird.api.v1.MaintenanceEventService.ListMaintenanceEvents:input_type -> firebird.api.v1.ListMaintenanceEventsRequest
-	24, // 27: firebird.api.v1.MaintenanceEventService.GetMaintenanceEvent:input_type -> firebird.api.v1.GetMaintenanceEventRequest
-	26, // 28: firebird.api.v1.MaintenanceEventService.AddMaintenanceEventComment:input_type -> firebird.api.v1.AddMaintenanceEventCommentRequest
-	28, // 29: firebird.api.v1.MaintenanceEventService.CreateMaintenanceEventForInstance:input_type -> firebird.api.v1.CreateMaintenanceEventForInstanceRequest
-	29, // 30: firebird.api.v1.MaintenanceEventService.AckMaintenanceEvent:input_type -> firebird.api.v1.AckMaintenanceEventRequest
-	30, // 31: firebird.api.v1.MaintenanceEventService.AckMaintenanceEventsForInstance:input_type -> firebird.api.v1.AckMaintenanceEventsForInstanceRequest
-	23, // 32: firebird.api.v1.MaintenanceEventService.ListMaintenanceEvents:output_type -> firebird.api.v1.ListMaintenanceEventsResponse
-	25, // 33: firebird.api.v1.MaintenanceEventService.GetMaintenanceEvent:output_type -> firebird.api.v1.GetMaintenanceEventResponse
-	27, // 34: firebird.api.v1.MaintenanceEventService.AddMaintenanceEventComment:output_type -> firebird.api.v1.MaintenanceEventCommentResponse
-	31, // 35: firebird.api.v1.MaintenanceEventService.CreateMaintenanceEventForInstance:output_type -> firebird.api.v1.MaintenanceEventResponse
-	31, // 36: firebird.api.v1.MaintenanceEventService.AckMaintenanceEvent:output_type -> firebird.api.v1.MaintenanceEventResponse
-	31, // 37: firebird.api.v1.MaintenanceEventService.AckMaintenanceEventsForInstance:output_type -> firebird.api.v1.MaintenanceEventResponse
-	32, // [32:38] is the sub-list for method output_type
-	26, // [26:32] is the sub-list for method input_type
-	26, // [26:26] is the sub-list for extension type_name
-	26, // [26:26] is the sub-list for extension extendee
-	0,  // [0:26] is the sub-list for field type_name
+	34, // 11: firebird.api.v1.MaintenanceEvent.ack_deadline_at:type_name -> google.protobuf.Timestamp
+	34, // 12: firebird.api.v1.MaintenanceEvent.acked_at:type_name -> google.protobuf.Timestamp
+	34, // 13: firebird.api.v1.MaintenanceEvent.created_at:type_name -> google.protobuf.Timestamp
+	34, // 14: firebird.api.v1.MaintenanceEvent.updated_at:type_name -> google.protobuf.Timestamp
+	34, // 15: firebird.api.v1.MaintenanceEvent.cleared_at:type_name -> google.protobuf.Timestamp
+	34, // 16: firebird.api.v1.MaintenanceEvent.bypassed_at:type_name -> google.protobuf.Timestamp
+	34, // 17: firebird.api.v1.MaintenanceEvent.window_start_at:type_name -> google.protobuf.Timestamp
+	34, // 18: firebird.api.v1.MaintenanceEvent.window_end_at:type_name -> google.protobuf.Timestamp
+	34, // 19: firebird.api.v1.MaintenanceEvent.ack_requested_at:type_name -> google.protobuf.Timestamp
+	34, // 20: firebird.api.v1.MaintenanceEvent.work_started_at:type_name -> google.protobuf.Timestamp
+	22, // 21: firebird.api.v1.MaintenanceEvent.work_periods:type_name -> firebird.api.v1.MaintenanceWorkPeriod
+	34, // 22: firebird.api.v1.MaintenanceWorkPeriod.started_at:type_name -> google.protobuf.Timestamp
+	34, // 23: firebird.api.v1.MaintenanceWorkPeriod.ended_at:type_name -> google.protobuf.Timestamp
+	6,  // 24: firebird.api.v1.ListMaintenanceEventsRequest.status:type_name -> firebird.api.v1.MaintenanceEventListStatusFilterEnum.MaintenanceEventListStatusFilter
+	34, // 25: firebird.api.v1.ListMaintenanceEventsRequest.updated_since:type_name -> google.protobuf.Timestamp
+	21, // 26: firebird.api.v1.ListMaintenanceEventsResponse.items:type_name -> firebird.api.v1.MaintenanceEvent
+	21, // 27: firebird.api.v1.GetMaintenanceEventResponse.event:type_name -> firebird.api.v1.MaintenanceEvent
+	20, // 28: firebird.api.v1.GetMaintenanceEventResponse.conversation:type_name -> firebird.api.v1.MaintenanceEventConversation
+	21, // 29: firebird.api.v1.MaintenanceEventCommentResponse.event:type_name -> firebird.api.v1.MaintenanceEvent
+	19, // 30: firebird.api.v1.MaintenanceEventCommentResponse.comment:type_name -> firebird.api.v1.MaintenanceEventComment
+	2,  // 31: firebird.api.v1.CreateMaintenanceEventForInstanceRequest.severity:type_name -> firebird.api.v1.MaintenanceEventSeverityEnum.MaintenanceEventSeverity
+	21, // 32: firebird.api.v1.MaintenanceEventResponse.event:type_name -> firebird.api.v1.MaintenanceEvent
+	23, // 33: firebird.api.v1.MaintenanceEventService.ListMaintenanceEvents:input_type -> firebird.api.v1.ListMaintenanceEventsRequest
+	25, // 34: firebird.api.v1.MaintenanceEventService.GetMaintenanceEvent:input_type -> firebird.api.v1.GetMaintenanceEventRequest
+	27, // 35: firebird.api.v1.MaintenanceEventService.AddMaintenanceEventComment:input_type -> firebird.api.v1.AddMaintenanceEventCommentRequest
+	29, // 36: firebird.api.v1.MaintenanceEventService.CreateMaintenanceEventForInstance:input_type -> firebird.api.v1.CreateMaintenanceEventForInstanceRequest
+	30, // 37: firebird.api.v1.MaintenanceEventService.AckMaintenanceEvent:input_type -> firebird.api.v1.AckMaintenanceEventRequest
+	31, // 38: firebird.api.v1.MaintenanceEventService.WithdrawMaintenanceEventAck:input_type -> firebird.api.v1.WithdrawMaintenanceEventAckRequest
+	32, // 39: firebird.api.v1.MaintenanceEventService.AckMaintenanceEventsForInstance:input_type -> firebird.api.v1.AckMaintenanceEventsForInstanceRequest
+	24, // 40: firebird.api.v1.MaintenanceEventService.ListMaintenanceEvents:output_type -> firebird.api.v1.ListMaintenanceEventsResponse
+	26, // 41: firebird.api.v1.MaintenanceEventService.GetMaintenanceEvent:output_type -> firebird.api.v1.GetMaintenanceEventResponse
+	28, // 42: firebird.api.v1.MaintenanceEventService.AddMaintenanceEventComment:output_type -> firebird.api.v1.MaintenanceEventCommentResponse
+	33, // 43: firebird.api.v1.MaintenanceEventService.CreateMaintenanceEventForInstance:output_type -> firebird.api.v1.MaintenanceEventResponse
+	33, // 44: firebird.api.v1.MaintenanceEventService.AckMaintenanceEvent:output_type -> firebird.api.v1.MaintenanceEventResponse
+	33, // 45: firebird.api.v1.MaintenanceEventService.WithdrawMaintenanceEventAck:output_type -> firebird.api.v1.MaintenanceEventResponse
+	33, // 46: firebird.api.v1.MaintenanceEventService.AckMaintenanceEventsForInstance:output_type -> firebird.api.v1.MaintenanceEventResponse
+	40, // [40:47] is the sub-list for method output_type
+	33, // [33:40] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_maintenance_event_proto_init() }
@@ -2152,16 +2472,17 @@ func file_maintenance_event_proto_init() {
 	}
 	file_maintenance_event_proto_msgTypes[9].OneofWrappers = []any{}
 	file_maintenance_event_proto_msgTypes[12].OneofWrappers = []any{}
-	file_maintenance_event_proto_msgTypes[13].OneofWrappers = []any{}
-	file_maintenance_event_proto_msgTypes[15].OneofWrappers = []any{}
-	file_maintenance_event_proto_msgTypes[19].OneofWrappers = []any{}
+	file_maintenance_event_proto_msgTypes[14].OneofWrappers = []any{}
+	file_maintenance_event_proto_msgTypes[16].OneofWrappers = []any{}
+	file_maintenance_event_proto_msgTypes[20].OneofWrappers = []any{}
+	file_maintenance_event_proto_msgTypes[21].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_maintenance_event_proto_rawDesc), len(file_maintenance_event_proto_rawDesc)),
 			NumEnums:      9,
-			NumMessages:   23,
+			NumMessages:   25,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

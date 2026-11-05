@@ -39,6 +39,11 @@ class MaintenanceEventServiceStub(object):
                 request_serializer=maintenance__event__pb2.AckMaintenanceEventRequest.SerializeToString,
                 response_deserializer=maintenance__event__pb2.MaintenanceEventResponse.FromString,
                 _registered_method=True)
+        self.WithdrawMaintenanceEventAck = channel.unary_unary(
+                '/firebird.api.v1.MaintenanceEventService/WithdrawMaintenanceEventAck',
+                request_serializer=maintenance__event__pb2.WithdrawMaintenanceEventAckRequest.SerializeToString,
+                response_deserializer=maintenance__event__pb2.MaintenanceEventResponse.FromString,
+                _registered_method=True)
         self.AckMaintenanceEventsForInstance = channel.unary_unary(
                 '/firebird.api.v1.MaintenanceEventService/AckMaintenanceEventsForInstance',
                 request_serializer=maintenance__event__pb2.AckMaintenanceEventsForInstanceRequest.SerializeToString,
@@ -85,6 +90,15 @@ class MaintenanceEventServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def WithdrawMaintenanceEventAck(self, request, context):
+        """Withdraws the tenant's acknowledgement of a maintenance window version.
+        The event returns to PENDING and does not proceed automatically at the
+        deadline for this window version; refused once provider work started.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
     def AckMaintenanceEventsForInstance(self, request, context):
         """Missing associated documentation comment in .proto file."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -117,6 +131,11 @@ def add_MaintenanceEventServiceServicer_to_server(servicer, server):
             'AckMaintenanceEvent': grpc.unary_unary_rpc_method_handler(
                     servicer.AckMaintenanceEvent,
                     request_deserializer=maintenance__event__pb2.AckMaintenanceEventRequest.FromString,
+                    response_serializer=maintenance__event__pb2.MaintenanceEventResponse.SerializeToString,
+            ),
+            'WithdrawMaintenanceEventAck': grpc.unary_unary_rpc_method_handler(
+                    servicer.WithdrawMaintenanceEventAck,
+                    request_deserializer=maintenance__event__pb2.WithdrawMaintenanceEventAckRequest.FromString,
                     response_serializer=maintenance__event__pb2.MaintenanceEventResponse.SerializeToString,
             ),
             'AckMaintenanceEventsForInstance': grpc.unary_unary_rpc_method_handler(
@@ -259,6 +278,33 @@ class MaintenanceEventService(object):
             target,
             '/firebird.api.v1.MaintenanceEventService/AckMaintenanceEvent',
             maintenance__event__pb2.AckMaintenanceEventRequest.SerializeToString,
+            maintenance__event__pb2.MaintenanceEventResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def WithdrawMaintenanceEventAck(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/firebird.api.v1.MaintenanceEventService/WithdrawMaintenanceEventAck',
+            maintenance__event__pb2.WithdrawMaintenanceEventAckRequest.SerializeToString,
             maintenance__event__pb2.MaintenanceEventResponse.FromString,
             options,
             channel_credentials,

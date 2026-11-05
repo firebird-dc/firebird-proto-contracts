@@ -100,9 +100,30 @@ service MaintenanceEventService {
   }
 
   rpc AckMaintenanceEvent(AckMaintenanceEventRequest) returns (MaintenanceEventResponse) {
-    option (google.api.http) = { post: "/maintenance-events/{event_id}/ack" };
+    option (google.api.http) = { post: "/maintenance-events/{event_id}/ack" body: "*" };
     option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
       summary: "Acknowledge maintenance event by event ID"
+      tags: "Breakfix"
+      security: { security_requirement: { key: "BearerAuth"; value: {}; } }
+      responses: {
+        key: "200";
+        value: {
+          description: "OK"
+          schema: {
+            json_schema: { ref: ".firebird.api.v1.MaintenanceEventResponse" }
+          }
+        };
+      }
+    };
+  }
+
+  // Withdraws the tenant's acknowledgement of a maintenance window version.
+  // The event returns to PENDING and does not proceed automatically at the
+  // deadline for this window version; refused once provider work started.
+  rpc WithdrawMaintenanceEventAck(WithdrawMaintenanceEventAckRequest) returns (MaintenanceEventResponse) {
+    option (google.api.http) = { post: "/maintenance-events/{event_id}/withdraw-ack" body: "*" };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Withdraw the acknowledgement of a maintenance window"
       tags: "Breakfix"
       security: { security_requirement: { key: "BearerAuth"; value: {}; } }
       responses: {
@@ -287,6 +308,34 @@ message MaintenanceEvent {
   google.protobuf.Timestamp bypassed_at = 21 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "When the acknowledgement requirement was bypassed"}];
   optional string bypassed_by = 22 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "The human operator who authorized the bypass (email or operator id); unset for deadline auto-bypass"}];
   optional string ticket_url = 23 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Tenant-trackable public URL of the operator ticket backing this event (https://<origin>/share/tickets/<token>); unset when the provider did not publish one"}];
+
+  // Maintenance window and version-bound consent. An event with no window is
+  // a notice: nothing is scheduled and no acknowledgement deadline runs. When
+  // a window is set or moved, window_version increases and the
+  // acknowledgement returns to PENDING (updated_at changes).
+  google.protobuf.Timestamp window_start_at = 30 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Start of the requested maintenance window; unset on a notice"}];
+  google.protobuf.Timestamp window_end_at = 31 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "End (exclusive) of the requested maintenance window; unset on a notice"}];
+  int32 window_version = 32 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Version of the maintenance window: 0 = no window was ever requested; increases on every window change and is never reset. Acknowledge a windowed event with this version."}];
+  optional string work_scope_digest = 33 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Opaque digest of the provider's work scope for this window"}];
+  google.protobuf.Timestamp ack_requested_at = 34 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "When the provider requested acknowledgement of the current window"}];
+  optional int32 ack_window_version = 35 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Window version the current ACKED/BYPASSED state applies to"}];
+  optional string consent_source = 36 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "How consent was recorded: TENANT_API, TENANT_BMAAS, OUT_OF_BAND, DEADLINE or EMERGENCY; unset while PENDING"}];
+  optional string consent_identity = 37 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Who gave or recorded the consent"}];
+  optional string consent_decision = 38 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "ACCEPTED or DECLINED for the current window version"}];
+  google.protobuf.Timestamp work_started_at = 39 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "When provider work under the current or last grant started"}];
+  optional string work_grant_id = 40 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Provider work grant covering this event"}];
+  optional string work_grant_state = 41 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "provisional, active or ended"}];
+  repeated MaintenanceWorkPeriod work_periods = 42 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Ended provider work periods on this event"}];
+  int64 auth_revision = 43 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Increases on every consent, window, ownership or grant change; compare for equality only"}];
+  optional int32 auto_bypass_cancelled_for_version = 44 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Window version whose automatic proceed at the deadline was cancelled (withdrawal, decline or revoked auto-proceed)"}];
+  int64 consent_revision = 45 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Increases on every consent change (acknowledgement, withdrawal, decision, deadline proceed, emergency bypass, window set or cleared); compare for equality only"}];
+}
+
+message MaintenanceWorkPeriod {
+  google.protobuf.Timestamp started_at = 1;
+  google.protobuf.Timestamp ended_at = 2;
+  string outcome = 3 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "done, paused, aborted or expired"}];
+  string grant_id = 4;
 }
 
 message ListMaintenanceEventsRequest {
@@ -343,8 +392,23 @@ message CreateMaintenanceEventForInstanceRequest {
   optional string comment = 4;
 }
 
-message AckMaintenanceEventRequest { string event_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maintenance event resource ID (format: maintenance-event.ULID)"}]; }
+message AckMaintenanceEventRequest {
+  string event_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maintenance event resource ID (format: maintenance-event.ULID)"}];
+  optional int32 window_version = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Window version being acknowledged. Required when the event has a maintenance window; may be omitted on a notice (no window)."}];
+}
 
+message WithdrawMaintenanceEventAckRequest {
+  option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_schema) = {
+    json_schema: { required: ["event_id", "window_version"] }
+  };
+  string event_id = 1 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Maintenance event resource ID (format: maintenance-event.ULID)"}];
+  int32 window_version = 2 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Window version whose acknowledgement is withdrawn"}];
+}
+
+// Acknowledges the PENDING events of one BM. With windowed consent enabled
+// only notices (events without a maintenance window) are acknowledged in
+// bulk; windowed events must be acknowledged individually with their
+// window_version.
 message AckMaintenanceEventsForInstanceRequest { string bm_id = 1; }
 
 message MaintenanceEventResponse {

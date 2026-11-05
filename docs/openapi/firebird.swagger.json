@@ -1001,6 +1001,14 @@
             "in": "path",
             "required": true,
             "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/MaintenanceEventServiceAckMaintenanceEventBody"
+            }
           }
         ],
         "tags": [
@@ -1047,6 +1055,45 @@
             "in": "header",
             "required": false,
             "type": "string"
+          }
+        ],
+        "tags": [
+          "Breakfix"
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/maintenance-events/{eventId}/withdraw-ack": {
+      "post": {
+        "summary": "Withdraw the acknowledgement of a maintenance window",
+        "operationId": "MaintenanceEventService_WithdrawMaintenanceEventAck",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "schema": {
+              "$ref": "#/definitions/v1MaintenanceEventResponse"
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "eventId",
+            "description": "Maintenance event resource ID (format: maintenance-event.ULID)",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "body",
+            "in": "body",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/MaintenanceEventServiceWithdrawMaintenanceEventAckBody"
+            }
           }
         ],
         "tags": [
@@ -5849,6 +5896,16 @@
         "P3_LOW"
       ]
     },
+    "MaintenanceEventServiceAckMaintenanceEventBody": {
+      "type": "object",
+      "properties": {
+        "windowVersion": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Window version being acknowledged. Required when the event has a maintenance window; may be omitted on a notice (no window)."
+        }
+      }
+    },
     "MaintenanceEventServiceAddMaintenanceEventCommentBody": {
       "type": "object",
       "properties": {
@@ -5859,6 +5916,19 @@
       },
       "required": [
         "text"
+      ]
+    },
+    "MaintenanceEventServiceWithdrawMaintenanceEventAckBody": {
+      "type": "object",
+      "properties": {
+        "windowVersion": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Window version whose acknowledgement is withdrawn"
+        }
+      },
+      "required": [
+        "windowVersion"
       ]
     },
     "MaintenanceEventSeverityEnumMaintenanceEventSeverity": {
@@ -8210,6 +8280,83 @@
         "ticketUrl": {
           "type": "string",
           "description": "Tenant-trackable public URL of the operator ticket backing this event (https://\u003corigin\u003e/share/tickets/\u003ctoken\u003e); unset when the provider did not publish one"
+        },
+        "windowStartAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Start of the requested maintenance window; unset on a notice"
+        },
+        "windowEndAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "End (exclusive) of the requested maintenance window; unset on a notice"
+        },
+        "windowVersion": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Version of the maintenance window: 0 = no window was ever requested; increases on every window change and is never reset. Acknowledge a windowed event with this version."
+        },
+        "workScopeDigest": {
+          "type": "string",
+          "description": "Opaque digest of the provider's work scope for this window"
+        },
+        "ackRequestedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When the provider requested acknowledgement of the current window"
+        },
+        "ackWindowVersion": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Window version the current ACKED/BYPASSED state applies to"
+        },
+        "consentSource": {
+          "type": "string",
+          "description": "How consent was recorded: TENANT_API, TENANT_BMAAS, OUT_OF_BAND, DEADLINE or EMERGENCY; unset while PENDING"
+        },
+        "consentIdentity": {
+          "type": "string",
+          "description": "Who gave or recorded the consent"
+        },
+        "consentDecision": {
+          "type": "string",
+          "description": "ACCEPTED or DECLINED for the current window version"
+        },
+        "workStartedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "When provider work under the current or last grant started"
+        },
+        "workGrantId": {
+          "type": "string",
+          "description": "Provider work grant covering this event"
+        },
+        "workGrantState": {
+          "type": "string",
+          "description": "provisional, active or ended"
+        },
+        "workPeriods": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "$ref": "#/definitions/v1MaintenanceWorkPeriod"
+          },
+          "description": "Ended provider work periods on this event"
+        },
+        "authRevision": {
+          "type": "string",
+          "format": "int64",
+          "description": "Increases on every consent, window, ownership or grant change; compare for equality only"
+        },
+        "autoBypassCancelledForVersion": {
+          "type": "integer",
+          "format": "int32",
+          "description": "Window version whose automatic proceed at the deadline was cancelled (withdrawal, decline or revoked auto-proceed)"
+        },
+        "consentRevision": {
+          "type": "string",
+          "format": "int64",
+          "description": "Increases on every consent change (acknowledgement, withdrawal, decision, deadline proceed, emergency bypass, window set or cleared); compare for equality only"
         }
       },
       "required": [
@@ -8328,6 +8475,26 @@
       "required": [
         "event"
       ]
+    },
+    "v1MaintenanceWorkPeriod": {
+      "type": "object",
+      "properties": {
+        "startedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "endedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "outcome": {
+          "type": "string",
+          "description": "done, paused, aborted or expired"
+        },
+        "grantId": {
+          "type": "string"
+        }
+      }
     },
     "v1NetworkACL": {
       "type": "object",
