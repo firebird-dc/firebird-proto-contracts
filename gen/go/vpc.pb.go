@@ -29,10 +29,11 @@ type VPCLifecycleState_State int32
 
 const (
 	VPCLifecycleState_UNSPECIFIED  VPCLifecycleState_State = 0
-	VPCLifecycleState_PROVISIONING VPCLifecycleState_State = 1 // Resource is being created or configured by the provider
+	VPCLifecycleState_PROVISIONING VPCLifecycleState_State = 1 // Resource is being created by the provider
 	VPCLifecycleState_READY        VPCLifecycleState_State = 2 // Resource is fully operational
 	VPCLifecycleState_DELETING     VPCLifecycleState_State = 3 // Resource deletion is in progress
 	VPCLifecycleState_ERROR        VPCLifecycleState_State = 4 // Create/update failed permanently; needs a fresh operation to recover
+	VPCLifecycleState_UPDATING     VPCLifecycleState_State = 5 // An update to an existing resource is being applied by the provider (VPC and Subnet only)
 )
 
 // Enum value maps for VPCLifecycleState_State.
@@ -43,6 +44,7 @@ var (
 		2: "READY",
 		3: "DELETING",
 		4: "ERROR",
+		5: "UPDATING",
 	}
 	VPCLifecycleState_State_value = map[string]int32{
 		"UNSPECIFIED":  0,
@@ -50,6 +52,7 @@ var (
 		"READY":        2,
 		"DELETING":     3,
 		"ERROR":        4,
+		"UPDATING":     5,
 	}
 )
 
@@ -185,7 +188,7 @@ func (FirewallRuleActionEnum_FirewallRuleAction) EnumDescriptor() ([]byte, []int
 }
 
 // VPCLifecycleState is a message wrapper containing the lifecycle state enum for VPC, Subnet, and FirewallRule.
-// Nested in a message so enum value names (PROVISIONING, READY, ERROR, DELETING) do not conflict with FilesystemState in the same package.
+// Nested in a message so enum value names (PROVISIONING, READY, ERROR, DELETING, UPDATING) do not conflict with FilesystemState in the same package.
 type VPCLifecycleState struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -2298,22 +2301,23 @@ var File_vpc_proto protoreflect.FileDescriptor
 
 const file_vpc_proto_rawDesc = "" +
 	"\n" +
-	"\tvpc.proto\x12\x0ffirebird.api.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1cgoogle/api/annotations.proto\x1a.protoc-gen-openapiv2/options/annotations.proto\x1a\fcommon.proto\x1a\x0foperation.proto\x1a\x11network_acl.proto\"c\n" +
-	"\x11VPCLifecycleState\"N\n" +
+	"\tvpc.proto\x12\x0ffirebird.api.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bgoogle/protobuf/empty.proto\x1a\x1cgoogle/api/annotations.proto\x1a.protoc-gen-openapiv2/options/annotations.proto\x1a\fcommon.proto\x1a\x0foperation.proto\x1a\x11network_acl.proto\"q\n" +
+	"\x11VPCLifecycleState\"\\\n" +
 	"\x05State\x12\x0f\n" +
 	"\vUNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fPROVISIONING\x10\x01\x12\t\n" +
 	"\x05READY\x10\x02\x12\f\n" +
 	"\bDELETING\x10\x03\x12\t\n" +
-	"\x05ERROR\x10\x04\"\xed\x06\n" +
+	"\x05ERROR\x10\x04\x12\f\n" +
+	"\bUPDATING\x10\x05\"\xf7\x06\n" +
 	"\x03VPC\x127\n" +
 	"\x02id\x18\x01 \x01(\tB'\x92A$2\"VPC resource ID (format: vpc.ULID)R\x02id\x12J\n" +
 	"\ttenant_id\x18\x02 \x01(\tB-\x92A*2(Tenant resource ID (format: tenant.ULID)R\btenantId\x12N\n" +
 	"\n" +
 	"project_id\x18\x03 \x01(\tB/\x92A,2*Project resource ID (format: project.ULID)R\tprojectId\x120\n" +
 	"\x04name\x18\x04 \x01(\tB\x1c\x92A\x192\x17Human-readable VPC nameR\x04name\x125\n" +
-	"\x04cidr\x18\x05 \x01(\tB!\x92A\x1e2\x1cIPv4 CIDR block for this VPCR\x04cidr\x12\x83\x01\n" +
-	"\x05state\x18\x06 \x01(\x0e2(.firebird.api.v1.VPCLifecycleState.StateBC\x92A@2>Current lifecycle state (PROVISIONING, READY, ERROR, DELETING)R\x05state\x12R\n" +
+	"\x04cidr\x18\x05 \x01(\tB!\x92A\x1e2\x1cIPv4 CIDR block for this VPCR\x04cidr\x12\x8d\x01\n" +
+	"\x05state\x18\x06 \x01(\x0e2(.firebird.api.v1.VPCLifecycleState.StateBM\x92AJ2HCurrent lifecycle state (PROVISIONING, READY, UPDATING, ERROR, DELETING)R\x05state\x12R\n" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampB\x17\x92A\x142\x12Creation timestampR\tcreatedAt\x12U\n" +
 	"\n" +
@@ -2370,7 +2374,7 @@ const file_vpc_proto_rawDesc = "" +
 	"\x06vpc_id\x18\x02 \x01(\tB'\x92A$2\"VPC resource ID (format: vpc.ULID)R\x05vpcId\"B\n" +
 	"\vVPCResponse\x12&\n" +
 	"\x03vpc\x18\x01 \x01(\v2\x14.firebird.api.v1.VPCR\x03vpc:\v\x92A\b\n" +
-	"\x06\xd2\x01\x03vpc\"\xcd\b\n" +
+	"\x06\xd2\x01\x03vpc\"\xd7\b\n" +
 	"\x06Subnet\x12=\n" +
 	"\x02id\x18\x01 \x01(\tB-\x92A*2(Subnet resource ID (format: subnet.ULID)R\x02id\x12J\n" +
 	"\ttenant_id\x18\x02 \x01(\tB-\x92A*2(Tenant resource ID (format: tenant.ULID)R\btenantId\x12N\n" +
@@ -2380,8 +2384,8 @@ const file_vpc_proto_rawDesc = "" +
 	"\x04name\x18\x05 \x01(\tB\x1f\x92A\x1c2\x1aHuman-readable subnet nameR\x04name\x12;\n" +
 	"\x04cidr\x18\x06 \x01(\tB'\x92A$2\"IPv4 CIDR block (e.g. 10.0.0.0/24)R\x04cidr\x12e\n" +
 	"\n" +
-	"gateway_ip\x18\a \x01(\tBF\x92AC2AGateway IP address (first usable IP in CIDR range, e.g. 10.0.0.1)R\tgatewayIp\x12\x83\x01\n" +
-	"\x05state\x18\b \x01(\x0e2(.firebird.api.v1.VPCLifecycleState.StateBC\x92A@2>Current lifecycle state (PROVISIONING, READY, ERROR, DELETING)R\x05state\x12R\n" +
+	"gateway_ip\x18\a \x01(\tBF\x92AC2AGateway IP address (first usable IP in CIDR range, e.g. 10.0.0.1)R\tgatewayIp\x12\x8d\x01\n" +
+	"\x05state\x18\b \x01(\x0e2(.firebird.api.v1.VPCLifecycleState.StateBM\x92AJ2HCurrent lifecycle state (PROVISIONING, READY, UPDATING, ERROR, DELETING)R\x05state\x12R\n" +
 	"\n" +
 	"created_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampB\x17\x92A\x142\x12Creation timestampR\tcreatedAt\x12U\n" +
@@ -2567,7 +2571,7 @@ const file_vpc_proto_rawDesc = "" +
 	"\n" +
 	"project_id\x18\x01 \x01(\tB/\x92A,2*Project resource ID (format: project.ULID)R\tprojectId\x12T\n" +
 	"\arule_id\x18\x02 \x01(\tB;\x92A826Firewall rule resource ID (format: firewall-rule.ULID)R\x06ruleId\x12>\n" +
-	"\x06vpc_id\x18\x03 \x01(\tB'\x92A$2\"VPC resource ID (format: vpc.ULID)R\x05vpcId2\xaaD\n" +
+	"\x06vpc_id\x18\x03 \x01(\tB'\x92A$2\"VPC resource ID (format: vpc.ULID)R\x05vpcId2\xb3D\n" +
 	"\n" +
 	"VPCService\x12\xe2\x05\n" +
 	"\tCreateVPC\x12!.firebird.api.v1.CreateVPCRequest\x1a\".firebird.api.v1.OperationResponse\"\x8d\x05\x92A\xdb\x04\n" +
@@ -2833,8 +2837,8 @@ const file_vpc_proto_rawDesc = "" +
 	"\x1fRule is in a transitional stateb\x10\n" +
 	"\x0e\n" +
 	"\n" +
-	"BearerAuth\x12\x00\x82\xd3\xe4\x93\x02G*E/projects/{project_id}/network/vpcs/{vpc_id}/firewall-rules/{rule_id}\x1a\x82\x03\x92A\xfe\x02\n" +
-	"\aNetwork\x12\xf2\x02Network (VPC) API.\n" +
+	"BearerAuth\x12\x00\x82\xd3\xe4\x93\x02G*E/projects/{project_id}/network/vpcs/{vpc_id}/firewall-rules/{rule_id}\x1a\x8b\x03\x92A\x87\x03\n" +
+	"\aNetwork\x12\xfb\x02Network (VPC) API.\n" +
 	"\n" +
 	"Use this section to:\n" +
 	"- Create and manage VPCs within a project\n" +
@@ -2846,7 +2850,7 @@ const file_vpc_proto_rawDesc = "" +
 	"- vpc_id scopes subnet operations\n" +
 	"\n" +
 	"Notes:\n" +
-	"- state reflects lifecycle (PROVISIONING/READY/ERROR/DELETING)\n" +
+	"- state reflects lifecycle (PROVISIONING/READY/UPDATING/ERROR/DELETING)\n" +
 	"\n" +
 	"Pagination:\n" +
 	"- List endpoints use limit and offsetB;Z9github.com/firebird-dc/firebird-proto-contracts/gen/go;v1b\x06proto3"
