@@ -24,6 +24,7 @@ const (
 	MaintenanceEventService_AddMaintenanceEventComment_FullMethodName        = "/firebird.api.v1.MaintenanceEventService/AddMaintenanceEventComment"
 	MaintenanceEventService_CreateMaintenanceEventForInstance_FullMethodName = "/firebird.api.v1.MaintenanceEventService/CreateMaintenanceEventForInstance"
 	MaintenanceEventService_AckMaintenanceEvent_FullMethodName               = "/firebird.api.v1.MaintenanceEventService/AckMaintenanceEvent"
+	MaintenanceEventService_WithdrawMaintenanceEventAck_FullMethodName       = "/firebird.api.v1.MaintenanceEventService/WithdrawMaintenanceEventAck"
 	MaintenanceEventService_AckMaintenanceEventsForInstance_FullMethodName   = "/firebird.api.v1.MaintenanceEventService/AckMaintenanceEventsForInstance"
 )
 
@@ -42,6 +43,10 @@ type MaintenanceEventServiceClient interface {
 	AddMaintenanceEventComment(ctx context.Context, in *AddMaintenanceEventCommentRequest, opts ...grpc.CallOption) (*MaintenanceEventCommentResponse, error)
 	CreateMaintenanceEventForInstance(ctx context.Context, in *CreateMaintenanceEventForInstanceRequest, opts ...grpc.CallOption) (*MaintenanceEventResponse, error)
 	AckMaintenanceEvent(ctx context.Context, in *AckMaintenanceEventRequest, opts ...grpc.CallOption) (*MaintenanceEventResponse, error)
+	// Withdraws the tenant's acknowledgement of a maintenance window version.
+	// The event returns to PENDING and does not proceed automatically at the
+	// deadline for this window version; refused once provider work started.
+	WithdrawMaintenanceEventAck(ctx context.Context, in *WithdrawMaintenanceEventAckRequest, opts ...grpc.CallOption) (*MaintenanceEventResponse, error)
 	AckMaintenanceEventsForInstance(ctx context.Context, in *AckMaintenanceEventsForInstanceRequest, opts ...grpc.CallOption) (*MaintenanceEventResponse, error)
 }
 
@@ -103,6 +108,16 @@ func (c *maintenanceEventServiceClient) AckMaintenanceEvent(ctx context.Context,
 	return out, nil
 }
 
+func (c *maintenanceEventServiceClient) WithdrawMaintenanceEventAck(ctx context.Context, in *WithdrawMaintenanceEventAckRequest, opts ...grpc.CallOption) (*MaintenanceEventResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(MaintenanceEventResponse)
+	err := c.cc.Invoke(ctx, MaintenanceEventService_WithdrawMaintenanceEventAck_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *maintenanceEventServiceClient) AckMaintenanceEventsForInstance(ctx context.Context, in *AckMaintenanceEventsForInstanceRequest, opts ...grpc.CallOption) (*MaintenanceEventResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(MaintenanceEventResponse)
@@ -128,6 +143,10 @@ type MaintenanceEventServiceServer interface {
 	AddMaintenanceEventComment(context.Context, *AddMaintenanceEventCommentRequest) (*MaintenanceEventCommentResponse, error)
 	CreateMaintenanceEventForInstance(context.Context, *CreateMaintenanceEventForInstanceRequest) (*MaintenanceEventResponse, error)
 	AckMaintenanceEvent(context.Context, *AckMaintenanceEventRequest) (*MaintenanceEventResponse, error)
+	// Withdraws the tenant's acknowledgement of a maintenance window version.
+	// The event returns to PENDING and does not proceed automatically at the
+	// deadline for this window version; refused once provider work started.
+	WithdrawMaintenanceEventAck(context.Context, *WithdrawMaintenanceEventAckRequest) (*MaintenanceEventResponse, error)
 	AckMaintenanceEventsForInstance(context.Context, *AckMaintenanceEventsForInstanceRequest) (*MaintenanceEventResponse, error)
 	mustEmbedUnimplementedMaintenanceEventServiceServer()
 }
@@ -153,6 +172,9 @@ func (UnimplementedMaintenanceEventServiceServer) CreateMaintenanceEventForInsta
 }
 func (UnimplementedMaintenanceEventServiceServer) AckMaintenanceEvent(context.Context, *AckMaintenanceEventRequest) (*MaintenanceEventResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AckMaintenanceEvent not implemented")
+}
+func (UnimplementedMaintenanceEventServiceServer) WithdrawMaintenanceEventAck(context.Context, *WithdrawMaintenanceEventAckRequest) (*MaintenanceEventResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method WithdrawMaintenanceEventAck not implemented")
 }
 func (UnimplementedMaintenanceEventServiceServer) AckMaintenanceEventsForInstance(context.Context, *AckMaintenanceEventsForInstanceRequest) (*MaintenanceEventResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AckMaintenanceEventsForInstance not implemented")
@@ -269,6 +291,24 @@ func _MaintenanceEventService_AckMaintenanceEvent_Handler(srv interface{}, ctx c
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MaintenanceEventService_WithdrawMaintenanceEventAck_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(WithdrawMaintenanceEventAckRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MaintenanceEventServiceServer).WithdrawMaintenanceEventAck(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MaintenanceEventService_WithdrawMaintenanceEventAck_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MaintenanceEventServiceServer).WithdrawMaintenanceEventAck(ctx, req.(*WithdrawMaintenanceEventAckRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _MaintenanceEventService_AckMaintenanceEventsForInstance_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AckMaintenanceEventsForInstanceRequest)
 	if err := dec(in); err != nil {
@@ -313,6 +353,10 @@ var MaintenanceEventService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AckMaintenanceEvent",
 			Handler:    _MaintenanceEventService_AckMaintenanceEvent_Handler,
+		},
+		{
+			MethodName: "WithdrawMaintenanceEventAck",
+			Handler:    _MaintenanceEventService_WithdrawMaintenanceEventAck_Handler,
 		},
 		{
 			MethodName: "AckMaintenanceEventsForInstance",
