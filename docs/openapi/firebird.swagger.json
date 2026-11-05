@@ -8352,6 +8352,11 @@
           "type": "integer",
           "format": "int32",
           "description": "Window version whose automatic proceed at the deadline was cancelled (withdrawal, decline or revoked auto-proceed)"
+        },
+        "consentRevision": {
+          "type": "string",
+          "format": "int64",
+          "description": "Increases on every consent change (acknowledgement, withdrawal, decision, deadline proceed, emergency bypass, window set or cleared); compare for equality only"
         }
       },
       "required": [

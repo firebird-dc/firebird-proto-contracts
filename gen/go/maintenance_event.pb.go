@@ -1080,6 +1080,7 @@ type MaintenanceEvent struct {
 	WorkPeriods                   []*MaintenanceWorkPeriod `protobuf:"bytes,42,rep,name=work_periods,json=workPeriods,proto3" json:"work_periods,omitempty"`
 	AuthRevision                  int64                    `protobuf:"varint,43,opt,name=auth_revision,json=authRevision,proto3" json:"auth_revision,omitempty"`
 	AutoBypassCancelledForVersion *int32                   `protobuf:"varint,44,opt,name=auto_bypass_cancelled_for_version,json=autoBypassCancelledForVersion,proto3,oneof" json:"auto_bypass_cancelled_for_version,omitempty"`
+	ConsentRevision               int64                    `protobuf:"varint,45,opt,name=consent_revision,json=consentRevision,proto3" json:"consent_revision,omitempty"`
 	unknownFields                 protoimpl.UnknownFields
 	sizeCache                     protoimpl.SizeCache
 }
@@ -1376,6 +1377,13 @@ func (x *MaintenanceEvent) GetAuthRevision() int64 {
 func (x *MaintenanceEvent) GetAutoBypassCancelledForVersion() int32 {
 	if x != nil && x.AutoBypassCancelledForVersion != nil {
 		return *x.AutoBypassCancelledForVersion
+	}
+	return 0
+}
+
+func (x *MaintenanceEvent) GetConsentRevision() int64 {
+	if x != nil {
+		return x.ConsentRevision
 	}
 	return 0
 }
@@ -2151,7 +2159,7 @@ const file_maintenance_event_proto_rawDesc = "" +
 	"created_at\"\xa6\x02\n" +
 	"\x1cMaintenanceEventConversation\x12|\n" +
 	"\x05items\x18\x01 \x03(\v2(.firebird.api.v1.MaintenanceEventCommentB<\x92A927One page of conversation entries in chronological orderR\x05items\x12\x87\x01\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tB_\x92A\\2ZToken retrieving OLDER entries; empty when the page contains the start of the conversationR\rnextPageToken\"\xc0'\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tB_\x92A\\2ZToken retrieving OLDER entries; empty when the page contains the start of the conversationR\rnextPageToken\"\x95)\n" +
 	"\x10MaintenanceEvent\x12S\n" +
 	"\x02id\x18\x01 \x01(\tBC\x92A@2>Maintenance event resource ID (format: maintenance-event.ULID)R\x02id\x12J\n" +
 	"\ttenant_id\x18\x02 \x01(\tB-\x92A*2(Tenant resource ID (format: tenant.ULID)R\btenantId\x12I\n" +
@@ -2202,7 +2210,8 @@ const file_maintenance_event_proto_rawDesc = "" +
 	"\x10work_grant_state\x18) \x01(\tB!\x92A\x1e2\x1cprovisional, active or endedH\x0eR\x0eworkGrantState\x88\x01\x01\x12y\n" +
 	"\fwork_periods\x18* \x03(\v2&.firebird.api.v1.MaintenanceWorkPeriodB.\x92A+2)Ended provider work periods on this eventR\vworkPeriods\x12\x82\x01\n" +
 	"\rauth_revision\x18+ \x01(\x03B]\x92AZ2XIncreases on every consent, window, ownership or grant change; compare for equality onlyR\fauthRevision\x12\xc6\x01\n" +
-	"!auto_bypass_cancelled_for_version\x18, \x01(\x05Bw\x92At2rWindow version whose automatic proceed at the deadline was cancelled (withdrawal, decline or revoked auto-proceed)H\x0fR\x1dautoBypassCancelledForVersion\x88\x01\x01:A\x92A>\n" +
+	"!auto_bypass_cancelled_for_version\x18, \x01(\x05Bw\x92At2rWindow version whose automatic proceed at the deadline was cancelled (withdrawal, decline or revoked auto-proceed)H\x0fR\x1dautoBypassCancelledForVersion\x88\x01\x01\x12\xd2\x01\n" +
+	"\x10consent_revision\x18- \x01(\x03B\xa6\x01\x92A\xa2\x012\x9f\x01Increases on every consent change (acknowledgement, withdrawal, decision, deadline proceed, emergency bypass, window set or cleared); compare for equality onlyR\x0fconsentRevision:A\x92A>\n" +
 	"<\xd2\x01\x02id\xd2\x01\ttenant_id\xd2\x01\x05bm_id\xd2\x01\x06status\xd2\x01\n" +
 	"created_at\xd2\x01\n" +
 	"updated_atB\a\n" +

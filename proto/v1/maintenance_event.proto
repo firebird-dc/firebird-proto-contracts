@@ -328,6 +328,7 @@ message MaintenanceEvent {
   repeated MaintenanceWorkPeriod work_periods = 42 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Ended provider work periods on this event"}];
   int64 auth_revision = 43 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Increases on every consent, window, ownership or grant change; compare for equality only"}];
   optional int32 auto_bypass_cancelled_for_version = 44 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Window version whose automatic proceed at the deadline was cancelled (withdrawal, decline or revoked auto-proceed)"}];
+  int64 consent_revision = 45 [(grpc.gateway.protoc_gen_openapiv2.options.openapiv2_field) = {description: "Increases on every consent change (acknowledgement, withdrawal, decision, deadline proceed, emergency bypass, window set or cleared); compare for equality only"}];
 }
 
 message MaintenanceWorkPeriod {
